@@ -1,5 +1,27 @@
 import { Client } from "pg";
 
+function getSanitizedRuntimeConfig() {
+  const databaseUrl = process.env.DATABASE_URL;
+  let databaseUrlHost = null;
+
+  if (databaseUrl) {
+    try {
+      databaseUrlHost = new URL(databaseUrl).hostname;
+    } catch {
+      databaseUrlHost = "invalid";
+    }
+  }
+
+  return {
+    nodeEnv: process.env.NODE_ENV ?? null,
+    hasDatabaseUrl: Boolean(databaseUrl),
+    databaseUrlHost,
+    postgresHost: process.env.POSTGRES_HOST ?? null,
+    postgresPort: process.env.POSTGRES_PORT ?? null,
+    vercelEnv: process.env.VERCEL_ENV ?? null,
+  };
+}
+
 async function query(queryObject) {
   const hasConnectionString = Boolean(process.env.DATABASE_URL);
   const databaseHost = process.env.POSTGRES_HOST;
@@ -42,6 +64,7 @@ async function query(queryObject) {
     return result;
   } catch (error) {
     console.error("Database query error:", error);
+    console.error("Database runtime config:", getSanitizedRuntimeConfig());
     throw error;
   } finally {
     await client.end();
