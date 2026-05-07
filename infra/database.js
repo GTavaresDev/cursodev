@@ -41,9 +41,11 @@ async function query(queryObject) {
   const client = hasConnectionString
     ? new Client({
         connectionString: process.env.DATABASE_URL,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: isLocalDatabase
+          ? false
+          : {
+              rejectUnauthorized: false,
+            },
       })
     : new Client({
         host: databaseHost,
