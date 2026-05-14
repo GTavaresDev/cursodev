@@ -24,6 +24,7 @@
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.78.0",
     "dotenv": "^16.4.4",
+    "dotenv-expand": "^11.0.6",
     "next": "^13.1.6",
     "node-pg-migrate": "^6.2.2",
     "pg": "^8.11.3",

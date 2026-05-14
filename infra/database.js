@@ -23,6 +23,21 @@ function getSanitizedRuntimeConfig() {
 }
 
 async function query(queryObject) {
+  const client = await getNewClient();
+
+  try {
+    const result = await client.query(queryObject);
+    return result;
+  } catch (error) {
+    console.error("Database query error:", error);
+    console.error("Database runtime config:", getSanitizedRuntimeConfig());
+    throw error;
+  } finally {
+    await client.end();
+  }
+}
+
+async function getNewClient() {
   const hasConnectionString = Boolean(process.env.DATABASE_URL);
   const databaseHost = process.env.POSTGRES_HOST;
   const isLocalDatabase =
@@ -60,20 +75,12 @@ async function query(queryObject) {
             },
       });
 
-  try {
-    await client.connect();
-    const result = await client.query(queryObject);
-    return result;
-  } catch (error) {
-    console.error("Database query error:", error);
-    console.error("Database runtime config:", getSanitizedRuntimeConfig());
-    throw error;
-  } finally {
-    await client.end();
-  }
+  await client.connect();
+  return client;
 }
 
 const database = {
+  getNewClient,
   query,
 };
 
