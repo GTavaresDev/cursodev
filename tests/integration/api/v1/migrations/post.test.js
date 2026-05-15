@@ -38,6 +38,16 @@ test("POST to /api/v1/migrations should return 201 when new migration runs and 2
   expect(Array.isArray(responseBody)).toBe(true);
   expect(responseBody.length).toBeGreaterThan(0);
 
+  const statusResponseAfterFirstPost = await fetch(
+    "http://localhost:3000/api/v1/status",
+  );
+  expect(statusResponseAfterFirstPost.status).toBe(200);
+
+  const statusBodyAfterFirstPost = await statusResponseAfterFirstPost.json();
+  expect(
+    statusBodyAfterFirstPost.dependencies.database.opened_connections,
+  ).toBe(1);
+
   const response2 = await fetch("http://localhost:3000/api/v1/migrations", {
     method: "POST",
   });
@@ -47,4 +57,14 @@ test("POST to /api/v1/migrations should return 201 when new migration runs and 2
   console.log("Response body 2:", responseBody2);
   expect(Array.isArray(responseBody2)).toBe(true);
   expect(responseBody2).toEqual([]);
+
+  const statusResponseAfterSecondPost = await fetch(
+    "http://localhost:3000/api/v1/status",
+  );
+  expect(statusResponseAfterSecondPost.status).toBe(200);
+
+  const statusBodyAfterSecondPost = await statusResponseAfterSecondPost.json();
+  expect(
+    statusBodyAfterSecondPost.dependencies.database.opened_connections,
+  ).toBe(1);
 });
