@@ -8,6 +8,20 @@ jobs:
     env:
       TEST_PORT: 4000
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.0-alpine3.18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +42,5 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-      - name: Wait for Postgres to be ready
-        run: npm run wait-for-postgres
       - name: Run tests
-        run: npm test
+        run: npm run test:ci
