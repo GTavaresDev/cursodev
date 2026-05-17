@@ -1,0 +1,46 @@
+name: Automated Tests
+
+on: pull_request
+
+jobs:
+  test:
+    name: Prettier
+    env:
+      TEST_PORT: 4000
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16.0-alpine3.18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Create CI env file
+        run: |
+          cat > .env.development <<EOF
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=postgres
+          POSTGRES_HOST=localhost
+          POSTGRES_PORT=5432
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+          EOF
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm run lint:prettier:check
