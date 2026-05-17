@@ -28,5 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      - name: Wait for Postgres to be ready
+        run: npm run wait-for-postgres
       - name: Run tests
         run: npm test
