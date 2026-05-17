@@ -28,7 +28,9 @@ async function cleanDatabase() {
 }
 
 test("POST to /api/v1/migrations should return 201 when new migration runs and 200 when there is no new migration", async () => {
-  const BASE = process.env.TEST_BASE_URL || `http://localhost:${process.env.TEST_PORT || 4000}`;
+  const BASE =
+    process.env.TEST_BASE_URL ||
+    `http://localhost:${process.env.TEST_PORT || 4000}`;
   const response = await fetch(`${BASE}/api/v1/migrations`, {
     method: "POST",
   });

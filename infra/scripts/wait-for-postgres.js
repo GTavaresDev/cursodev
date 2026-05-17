@@ -49,5 +49,7 @@ function checkPostgres() {
     });
 }
 
-console.log(`⏳ Aguardando o Postgres iniciar em ${POSTGRES_HOST}:${POSTGRES_PORT}...`);
+console.log(
+  `⏳ Aguardando o Postgres iniciar em ${POSTGRES_HOST}:${POSTGRES_PORT}...`,
+);
 checkPostgres();
