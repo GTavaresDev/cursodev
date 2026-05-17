@@ -28,11 +28,18 @@ async function cleanDatabase() {
 }
 
 test("Get to /api/v1/migrations should return 200", async () => {
-  const response = await fetch("http://localhost:3000/api/v1/migrations");
+  const BASE = process.env.TEST_BASE_URL || `http://localhost:${process.env.TEST_PORT || 4000}`;
+  const response = await fetch(`${BASE}/api/v1/migrations`);
   expect(response.status).toBe(200);
 
   const responseBody = await response.json();
   console.log("Response body:", responseBody);
   expect(Array.isArray(responseBody)).toBe(true);
   expect(responseBody.length).toBeGreaterThan(0);
+
+  const statusResponse = await fetch(`${BASE}/api/v1/status`);
+  expect(statusResponse.status).toBe(200);
+
+  const statusBody = await statusResponse.json();
+  expect(statusBody.dependencies.database.opened_connections).toBe(1);
 });
