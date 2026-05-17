@@ -28,7 +28,9 @@ async function cleanDatabase() {
 }
 
 test("Get to /api/v1/migrations should return 200", async () => {
-  const BASE = process.env.TEST_BASE_URL || `http://localhost:${process.env.TEST_PORT || 4000}`;
+  const BASE =
+    process.env.TEST_BASE_URL ||
+    `http://localhost:${process.env.TEST_PORT || 4000}`;
   const response = await fetch(`${BASE}/api/v1/migrations`);
   expect(response.status).toBe(200);
 
