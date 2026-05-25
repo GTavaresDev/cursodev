@@ -1,5 +1,9 @@
+const dotenv = require("dotenv");
+const dotenvExpand = require("dotenv-expand");
 const { createConnection } = require("net");
 const { Client } = require("pg");
+
+dotenvExpand.expand(dotenv.config({ path: ".env.development" }));
 
 const CHECK_INTERVAL_MS = 1000;
 const MAX_ATTEMPTS = Number(process.env.WAIT_FOR_POSTGRES_MAX_ATTEMPTS) || 60;
