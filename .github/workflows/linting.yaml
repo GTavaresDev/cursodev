@@ -2,6 +2,10 @@ name: Linting
 
 on: pull_request
 
+permissions:
+  pull-requests: read
+  contents: read
+
 jobs:
   lint:
     name: Prettier
@@ -31,3 +35,21 @@ jobs:
         run: npm ci
       - name: Run ESLint
         run: npm run lint:eslint:check
+  commitlint:
+    name: Commitlint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
