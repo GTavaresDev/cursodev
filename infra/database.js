@@ -33,7 +33,7 @@ async function query(queryObject) {
     console.error("Database runtime config:", getSanitizedRuntimeConfig());
     throw error;
   } finally {
-    await client.end();
+    await client?.end();
   }
 }
 

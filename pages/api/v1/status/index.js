@@ -1,4 +1,5 @@
 import database from "infra/database.js";
+import { InternalServerError } from "infra/erros.js";
 
 async function GetStatus(req, res) {
   const updateAt = new Date().toISOString();
@@ -38,6 +39,14 @@ async function GetStatus(req, res) {
         },
       },
     });
+  } catch (err) {
+    console.error("GetStatus error:", err);
+    const publicErrorMessage = new InternalServerError({
+      cause: err,
+    });
+    if (!res.headersSent) {
+      res.status(500).json({ error: publicErrorMessage });
+    }
   } finally {
     await dbClient.end();
   }
