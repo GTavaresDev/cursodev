@@ -1,4 +1,4 @@
-import migrationRuner from "node-pg-migrate";
+import { runner as migrationRunner } from "node-pg-migrate";
 import { join } from "node:path";
 import database from "infra/database.js";
 
@@ -7,7 +7,7 @@ export default async function migrations(req, res) {
     const dbClient = await database.getNewClient();
 
     try {
-      const pedingMigrations = await migrationRuner({
+      const pendingMigrations = await migrationRunner({
         dbClient,
         dryRun: true,
         noLock: true,
@@ -17,7 +17,7 @@ export default async function migrations(req, res) {
         migrationsTable: "pgmigrations",
       });
 
-      return res.status(200).json(pedingMigrations);
+      return res.status(200).json(pendingMigrations);
     } finally {
       await dbClient.end();
     }
@@ -27,7 +27,7 @@ export default async function migrations(req, res) {
     const dbClient = await database.getNewClient();
 
     try {
-      const createdMigrations = await migrationRuner({
+      const createdMigrations = await migrationRunner({
         dbClient,
         dryRun: false,
         noLock: true,
