@@ -12,7 +12,7 @@ const postgresConfig = {
   ssl: false,
 };
 
-beforeAll(async () => {
+beforeEach(async () => {
   await cleanDatabase();
 });
 
@@ -27,43 +27,65 @@ async function cleanDatabase() {
   }
 }
 
-test("POST to /api/v1/migrations should return 201 when new migration runs and 200 when there is no new migration", async () => {
-  const BASE =
-    process.env.TEST_BASE_URL ||
-    `http://localhost:${process.env.TEST_PORT || 4000}`;
-  const response = await fetch(`${BASE}/api/v1/migrations`, {
-    method: "POST",
+describe("POST /api/v1/migrations", () => {
+  describe("Anonymous user", () => {
+    describe("when there are pending migrations", () => {
+      test("should return 201", async () => {
+        const BASE =
+          process.env.TEST_BASE_URL ||
+          `http://localhost:${process.env.TEST_PORT || 4000}`;
+        const response = await fetch(`${BASE}/api/v1/migrations`, {
+          method: "POST",
+        });
+        expect(response.status).toBe(201);
+
+        const responseBody = await response.json();
+        expect(Array.isArray(responseBody)).toBe(true);
+        expect(responseBody.length).toBeGreaterThan(0);
+
+        const statusResponseAfterFirstPost = await fetch(
+          `${BASE}/api/v1/status`,
+        );
+        expect(statusResponseAfterFirstPost.status).toBe(200);
+
+        const statusBodyAfterFirstPost =
+          await statusResponseAfterFirstPost.json();
+        expect(
+          statusBodyAfterFirstPost.dependencies.database.opened_connections,
+        ).toBe(1);
+      });
+    });
+
+    describe("when there are no pending migrations", () => {
+      test("should return 200 and an empty array", async () => {
+        const BASE =
+          process.env.TEST_BASE_URL ||
+          `http://localhost:${process.env.TEST_PORT || 4000}`;
+
+        await fetch(`${BASE}/api/v1/migrations`, {
+          method: "POST",
+        });
+
+        const response2 = await fetch(`${BASE}/api/v1/migrations`, {
+          method: "POST",
+        });
+        expect(response2.status).toBe(200);
+
+        const responseBody2 = await response2.json();
+        expect(Array.isArray(responseBody2)).toBe(true);
+        expect(responseBody2).toEqual([]);
+
+        const statusResponseAfterSecondPost = await fetch(
+          `${BASE}/api/v1/status`,
+        );
+        expect(statusResponseAfterSecondPost.status).toBe(200);
+
+        const statusBodyAfterSecondPost =
+          await statusResponseAfterSecondPost.json();
+        expect(
+          statusBodyAfterSecondPost.dependencies.database.opened_connections,
+        ).toBe(1);
+      });
+    });
   });
-  expect(response.status).toBe(201);
-
-  const responseBody = await response.json();
-  console.log("Response body:", responseBody);
-  expect(Array.isArray(responseBody)).toBe(true);
-  expect(responseBody.length).toBeGreaterThan(0);
-
-  const statusResponseAfterFirstPost = await fetch(`${BASE}/api/v1/status`);
-  expect(statusResponseAfterFirstPost.status).toBe(200);
-
-  const statusBodyAfterFirstPost = await statusResponseAfterFirstPost.json();
-  expect(
-    statusBodyAfterFirstPost.dependencies.database.opened_connections,
-  ).toBe(1);
-
-  const response2 = await fetch(`${BASE}/api/v1/migrations`, {
-    method: "POST",
-  });
-  expect(response2.status).toBe(200);
-
-  const responseBody2 = await response2.json();
-  console.log("Response body 2:", responseBody2);
-  expect(Array.isArray(responseBody2)).toBe(true);
-  expect(responseBody2).toEqual([]);
-
-  const statusResponseAfterSecondPost = await fetch(`${BASE}/api/v1/status`);
-  expect(statusResponseAfterSecondPost.status).toBe(200);
-
-  const statusBodyAfterSecondPost = await statusResponseAfterSecondPost.json();
-  expect(
-    statusBodyAfterSecondPost.dependencies.database.opened_connections,
-  ).toBe(1);
 });
