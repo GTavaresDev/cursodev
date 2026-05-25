@@ -1,12 +1,32 @@
+import { createRouter } from "next-connect";
 import database from "infra/database.js";
-import { InternalServerError } from "infra/erros.js";
+import { InternalServerError, MethodNotAllowedError } from "infra/erros.js";
 
-async function GetStatus(req, res) {
+const router = createRouter();
+
+router.get(getHandler);
+
+export default router.handler({
+  onNoMatch: OnNoMatchHandler,
+  onError: onErrorHandler,
+});
+
+function OnNoMatchHandler(req, res) {
+  const publicErrorMessage = new MethodNotAllowedError();
+  return res.status(publicErrorMessage.statusCode).json(publicErrorMessage);
+}
+
+function onErrorHandler(err, req, res) {
+  const publicErrorMessage = new InternalServerError({ cause: err });
+  console.error(publicErrorMessage);
+  return res.status(publicErrorMessage.statusCode).json(publicErrorMessage);
+}
+async function getHandler(req, res) {
   const updateAt = new Date().toISOString();
 
   const dbClient = await database.getNewClient();
 
-  try {
+  return (async () => {
     const databaseVersion = await dbClient.query("SHOW server_version;");
     const databaseVersionString = databaseVersion.rows[0].server_version;
 
@@ -39,17 +59,5 @@ async function GetStatus(req, res) {
         },
       },
     });
-  } catch (err) {
-    console.error("GetStatus error:", err);
-    const publicErrorMessage = new InternalServerError({
-      cause: err,
-    });
-    if (!res.headersSent) {
-      res.status(500).json({ error: publicErrorMessage });
-    }
-  } finally {
-    await dbClient.end();
-  }
+  })().finally(() => dbClient.end());
 }
-
-export default GetStatus;

@@ -8,5 +8,6 @@ const jestConfig = createJestConfig({
   moduleDirectories: ["node_modules", "<rootDir>/"],
   maxWorkers: 1,
   testEnvironment: "node",
+  watchman: false,
 });
 module.exports = jestConfig;
