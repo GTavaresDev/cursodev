@@ -20,8 +20,10 @@
     "test:ci": "npm run migration:up && start-server-and-test \"PORT=4000 next dev\" http://localhost:4000 \"jest --runInBand\"",
     "test:watch": "jest --watchAll --runInBand",
     "posttest": "npm run services:down",
-    "migrations:create": "node-pg-migrate -m infra/migrations create",
-    "migrations:up": "node-pg-migrate -m infra/migrations --envPath .env.development up",
+    "migration:create": "node-pg-migrate -m infra/migrations create",
+    "migration:up": "node-pg-migrate -m infra/migrations --envPath .env.development up",
+    "migrations:create": "npm run migration:create",
+    "migrations:up": "npm run migration:up",
     "prepare": "husky"
   },
   "author": "",

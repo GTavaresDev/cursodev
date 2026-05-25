@@ -3,7 +3,13 @@ import jest from "eslint-plugin-jest";
 
 const config = [
   {
-    ignores: [".next/**", "coverage/**", "node_modules/**", "out/**", "build/**"],
+    ignores: [
+      ".next/**",
+      "coverage/**",
+      "node_modules/**",
+      "out/**",
+      "build/**",
+    ],
   },
   ...nextCoreWebVitals,
   {
