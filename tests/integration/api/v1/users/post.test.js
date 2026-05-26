@@ -1,7 +1,7 @@
 const dotenv = require("dotenv");
 const { Client } = require("pg");
 const orchestrator = require("tests/orchestrator.js");
-
+import user from "models/user.js";
 dotenv.config({ path: ".env.development" });
 
 const postgresConfig = {
@@ -58,6 +58,21 @@ async function insertUserDirectly(email, username, password) {
   }
 }
 
+async function getUserFromDatabase(email) {
+  const client = new Client(postgresConfig);
+
+  await client.connect();
+  try {
+    const result = await client.query(
+      `SELECT id, email, username, password, created_at, updated_at FROM users WHERE email = $1`,
+      [email],
+    );
+    return result.rows[0] || null;
+  } finally {
+    await client.end();
+  }
+}
+
 describe("POST /api/v1/users", () => {
   describe("Anonymous user", () => {
     describe("when creating a valid user", () => {
@@ -83,6 +98,16 @@ describe("POST /api/v1/users", () => {
         expect(responseBody.email).toBe(userData.email);
         expect(responseBody.username).toBe(userData.username);
         expect(responseBody).not.toHaveProperty("password");
+
+        // Verify exactly what was stored in the database
+        const userInDatabase = await getUserFromDatabase(userData.email);
+        expect(userInDatabase).not.toBeNull();
+        expect(userInDatabase.id).toBe(responseBody.id);
+        expect(userInDatabase.email).toBe(userData.email);
+        expect(userInDatabase.username).toBe(userData.username);
+        expect(userInDatabase.password).toBe(userData.password);
+        expect(userInDatabase.created_at).toBeTruthy();
+        expect(userInDatabase.updated_at).toBeTruthy();
       });
 
       test("should insert user directly in database with SQL query", async () => {
