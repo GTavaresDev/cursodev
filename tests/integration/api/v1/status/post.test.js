@@ -1,7 +1,7 @@
-import waitForAllServices from "../../../../orchestrator";
+const orchestrator = require("tests/orchestrator.js");
 
 beforeAll(async () => {
-  await waitForAllServices();
+  await orchestrator.waitForAllServices();
 });
 
 test("Post to /api/v1/status should return 405", async () => {

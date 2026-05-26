@@ -1,5 +1,6 @@
 import { InternalServerError, MethodNotAllowedError } from "infra/erros.js";
 import migrator from "models/migrator.js";
+import userService from "models/user.js";
 
 function OnNoMatchHandler(req, res) {
   const publicErrorMessage = new MethodNotAllowedError();
@@ -30,6 +31,12 @@ async function runMigrations(req, res) {
   return res.status(201).json(createdMigrations);
 }
 
+async function postUser(req, res) {
+  const { email, username, password } = req.body;
+  const user = await userService.create({ email, username, password });
+  return res.status(201).json(user);
+}
+
 const controller = {
   errorHandlers: {
     onNoMatch: OnNoMatchHandler,
@@ -38,6 +45,9 @@ const controller = {
   migrations: {
     getPendingMigrations,
     runMigrations,
+  },
+  users: {
+    postUser,
   },
 };
 export default controller;

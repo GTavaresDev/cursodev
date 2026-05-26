@@ -9,5 +9,6 @@ const jestConfig = createJestConfig({
   maxWorkers: 1,
   testEnvironment: "node",
   watchman: false,
+  testMatch: ["**/tests/**/*.test.js"],
 });
 module.exports = jestConfig;
