@@ -16,7 +16,8 @@ function onErrorHandler(err, req, res) {
     cause: err,
     statusCode: err.statusCode ?? undefined,
   });
-  console.error(publicErrorMessage);
+  console.error("onErrorHandler publicErrorMessage:", publicErrorMessage);
+  console.error("onErrorHandler original error:", err);
   return res.status(publicErrorMessage.statusCode).json(publicErrorMessage);
 }
 
@@ -35,6 +36,11 @@ async function runMigrations(req, res) {
   return res.status(201).json(createdMigrations);
 }
 
+async function runMigrationsWithOk(req, res) {
+  const createdMigrations = await migrator.runMigrations();
+  return res.status(200).json(createdMigrations);
+}
+
 async function postUser(req, res) {
   try {
     const { email, username, password } = req.body;
@@ -49,6 +55,20 @@ async function postUser(req, res) {
   }
 }
 
+async function getUserByUsername(req, res) {
+  try {
+    const { username } = req.query;
+    const user = await userService.findOneByUsername(username);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.status(200).json(user);
+  } catch (err) {
+    console.error("getUserByUsername error:", err);
+    throw err;
+  }
+}
+
 const controller = {
   errorHandlers: {
     onNoMatch: OnNoMatchHandler,
@@ -57,9 +77,11 @@ const controller = {
   migrations: {
     getPendingMigrations,
     runMigrations,
+    runMigrationsWithOk,
   },
   users: {
     postUser,
+    getUserByUsername,
   },
 };
 export default controller;

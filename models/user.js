@@ -51,6 +51,34 @@ class UserService {
       await client.end();
     }
   }
+
+  async findOneByUsername(username) {
+    if (!username) return null;
+    const normalizedUsername = String(username).toLowerCase();
+    const client = await database.getNewClient();
+    try {
+      const result = await client.query(
+        `SELECT id, email, username, created_at, updated_at FROM users WHERE LOWER(username) = $1 LIMIT 1`,
+        [normalizedUsername],
+      );
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async findByUsername(username) {
+    const client = await database.getNewClient();
+    try {
+      const result = await client.query(
+        `SELECT id, email, username, created_at, updated_at FROM users WHERE username = $1 LIMIT 1`,
+        [username],
+      );
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
 }
 
 export default new UserService();
