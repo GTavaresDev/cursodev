@@ -3,7 +3,6 @@ import controller from "infra/controller.js";
 
 const router = createRouter();
 
-router.get(controller.migrations.runMigrationsWithOk);
-router.post(controller.migrations.runMigrations);
+router.get(controller.users.getUserByUsername);
 
 export default router.handler(controller.errorHandlers);

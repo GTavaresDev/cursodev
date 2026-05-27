@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import { ServiceServerError } from "./erros";
 
 function getSanitizedRuntimeConfig() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -29,11 +30,11 @@ async function query(queryObject) {
     const result = await client.query(queryObject);
     return result;
   } catch (error) {
-    console.error("Database query error:", error);
-    console.error("Database runtime config:", getSanitizedRuntimeConfig());
+    const serviceError = new ServiceServerError({ cause: error });
+    console.error(serviceError);
     throw error;
   } finally {
-    await client.end();
+    await client?.end();
   }
 }
 
