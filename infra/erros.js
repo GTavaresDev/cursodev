@@ -51,3 +51,21 @@ export class MethodNotAllowedError extends Error {
     };
   }
 }
+
+export class ValidationError extends Error {
+  constructor({ cause, message, action, statusCode } = {}) {
+    super("Validation Error", { cause });
+    this.name = "ValidationError";
+    this.message = message || "Validation Error";
+    this.action = action;
+    this.statusCode = statusCode || 409;
+  }
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      action: this.action,
+      statusCode: this.statusCode,
+    };
+  }
+}

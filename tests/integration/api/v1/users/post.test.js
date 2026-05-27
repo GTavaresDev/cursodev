@@ -1,7 +1,7 @@
 const dotenv = require("dotenv");
 const { Client } = require("pg");
 const orchestrator = require("tests/orchestrator.js");
-import user from "models/user.js";
+
 dotenv.config({ path: ".env.development" });
 
 const postgresConfig = {
@@ -122,6 +122,96 @@ describe("POST /api/v1/users", () => {
         expect(insertedUser.username).toBe("directuser");
         expect(insertedUser).not.toHaveProperty("password");
         console.log("Inserted user directly into database:", insertedUser);
+      });
+    });
+
+    describe("when creating a duplicate email user", () => {
+      test("should return 409 when email already exists (case-insensitive)", async () => {
+        const BASE =
+          process.env.TEST_BASE_URL ||
+          `http://localhost:${process.env.TEST_PORT || 4000}`;
+
+        // First user
+        const firstUser = {
+          email: "duplicate@example.com",
+          username: "firstuser",
+          password: "password123",
+        };
+
+        const firstResponse = await fetch(`${BASE}/api/v1/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(firstUser),
+        });
+        expect(firstResponse.status).toBe(201);
+
+        // Second user with same email (different case)
+        const secondUser = {
+          email: "DUPLICATE@EXAMPLE.COM",
+          username: "seconduser",
+          password: "password456",
+        };
+
+        const secondResponse = await fetch(`${BASE}/api/v1/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(secondUser),
+        });
+        expect(secondResponse.status).toBe(409);
+
+        const errorBody = await secondResponse.json();
+        expect(errorBody.name).toBe("ValidationError");
+        expect(errorBody.statusCode).toBe(409);
+        expect(errorBody.message).toBe(
+          "O email informado a esta sendo ultilizado.",
+        );
+        expect(errorBody.action).toBe(
+          "Utilize outro email para realizar o cadastro",
+        );
+      });
+    });
+
+    describe("when creating a duplicate username user", () => {
+      test("should return 409 when username already exists (case-insensitive)", async () => {
+        const BASE =
+          process.env.TEST_BASE_URL ||
+          `http://localhost:${process.env.TEST_PORT || 4000}`;
+
+        const firstUser = {
+          email: "first-username@example.com",
+          username: "duplicateusername",
+          password: "password123",
+        };
+
+        const firstResponse = await fetch(`${BASE}/api/v1/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(firstUser),
+        });
+        expect(firstResponse.status).toBe(201);
+
+        const secondUser = {
+          email: "second-username@example.com",
+          username: "DUPLICATEUSERNAME",
+          password: "password456",
+        };
+
+        const secondResponse = await fetch(`${BASE}/api/v1/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(secondUser),
+        });
+        expect(secondResponse.status).toBe(409);
+
+        const errorBody = await secondResponse.json();
+        expect(errorBody.name).toBe("ValidationError");
+        expect(errorBody.statusCode).toBe(409);
+        expect(errorBody.message).toBe(
+          "O username informado a esta sendo ultilizado.",
+        );
+        expect(errorBody.action).toBe(
+          "Utilize outro username para realizar o cadastro",
+        );
       });
     });
   });

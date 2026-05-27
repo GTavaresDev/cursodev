@@ -1,19 +1,49 @@
 import database from "infra/database.js";
 import crypto from "node:crypto";
+import { ValidationError } from "infra/erros.js";
 
 class UserService {
   async create({ email, username, password }) {
-    const id = crypto.randomUUID();
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase();
+    const normalizedUsername = username.toLowerCase();
+
     const client = await database.getNewClient();
 
     try {
+      // Check if email already exists (case-insensitive)
+      const existingUser = await client.query(
+        `SELECT id FROM users WHERE LOWER(email) = $1`,
+        [normalizedEmail],
+      );
+
+      if (existingUser.rowCount > 0) {
+        throw new ValidationError({
+          message: "O email informado a esta sendo ultilizado.",
+          action: "Utilize outro email para realizar o cadastro",
+        });
+      }
+
+      const existingUsername = await client.query(
+        `SELECT id FROM users WHERE LOWER(username) = $1`,
+        [normalizedUsername],
+      );
+
+      if (existingUsername.rowCount > 0) {
+        throw new ValidationError({
+          message: "O username informado a esta sendo ultilizado.",
+          action: "Utilize outro username para realizar o cadastro",
+        });
+      }
+
+      const id = crypto.randomUUID();
       const result = await client.query(
         `
         INSERT INTO users (id, email, username, password, created_at, updated_at)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING id, email, username, created_at, updated_at
         `,
-        [id, email, username, password],
+        [id, normalizedEmail, username, password],
       );
 
       return result.rows[0];

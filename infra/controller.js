@@ -1,4 +1,8 @@
-import { InternalServerError, MethodNotAllowedError } from "infra/erros.js";
+import {
+  InternalServerError,
+  MethodNotAllowedError,
+  ValidationError,
+} from "infra/erros.js";
 import migrator from "models/migrator.js";
 import userService from "models/user.js";
 
@@ -32,9 +36,17 @@ async function runMigrations(req, res) {
 }
 
 async function postUser(req, res) {
-  const { email, username, password } = req.body;
-  const user = await userService.create({ email, username, password });
-  return res.status(201).json(user);
+  try {
+    const { email, username, password } = req.body;
+    const user = await userService.create({ email, username, password });
+    return res.status(201).json(user);
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      console.error(err.toJSON());
+      return res.status(err.statusCode).json(err);
+    }
+    throw err;
+  }
 }
 
 const controller = {
