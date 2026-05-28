@@ -1,6 +1,6 @@
 const dotenv = require("dotenv");
 const { Client } = require("pg");
-const orchestrator = require("tests/orchestrator.js");
+const waitForAllServices = require("tests/orchestrator.js").default;
 const password = require("models/password.js").default;
 
 dotenv.config({ path: ".env.development" });
@@ -15,7 +15,7 @@ const postgresConfig = {
 };
 
 beforeEach(async () => {
-  await orchestrator.waitForAllServices();
+  await waitForAllServices();
   await cleanDatabase();
   await runMigrations();
 });
