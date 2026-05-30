@@ -1,6 +1,16 @@
 import userService from "models/user.js";
 import { ValidationError } from "infra/erros.js";
 
+async function patchUserByUsername(req, res, username) {
+  const updatedUser = await userService.updateByUsername(username, req.body);
+
+  if (!updatedUser) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  return res.status(200).json(updatedUser);
+}
+
 export default async function getUserByUsername(req, res) {
   if (req.method !== "GET" && req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -10,16 +20,7 @@ export default async function getUserByUsername(req, res) {
     const { username } = req.query;
 
     if (req.method === "PATCH") {
-      const updatedUser = await userService.updateByUsername(
-        username,
-        req.body,
-      );
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      return res.status(200).json(updatedUser);
+      return patchUserByUsername(req, res, username);
     }
 
     const user = await userService.findOneByUsername(username);
@@ -34,7 +35,7 @@ export default async function getUserByUsername(req, res) {
       return res.status(error.statusCode).json(error.toJSON());
     }
 
-    console.error("GET /api/v1/users/[username] error:", error);
+    console.error("PATCH /api/v1/users/[username] error:", error);
     return res.status(500).json({
       name: "InternalServerError",
       message: "Entre em contato com o suporte para resolver este problema.",
