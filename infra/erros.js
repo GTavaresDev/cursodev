@@ -49,4 +49,46 @@ class ValidationError extends Error {
   }
 }
 
-export { InternalServerError, MethodNotAllowedError, ValidationError };
+class UnauthorizedError extends Error {
+  constructor({ message, action, statusCode } = {}) {
+    super(message || "Usuário não autenticado.");
+    this.name = "UnauthorizedError";
+    this.action = action;
+    this.statusCode = statusCode || 401;
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      action: this.action,
+      statusCode: this.statusCode,
+    };
+  }
+}
+
+class ForbiddenError extends Error {
+  constructor({ message, action, statusCode } = {}) {
+    super(message || "Você não tem permissão para realizar esta ação.");
+    this.name = "ForbiddenError";
+    this.action = action;
+    this.statusCode = statusCode || 403;
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      action: this.action,
+      statusCode: this.statusCode,
+    };
+  }
+}
+
+export {
+  ForbiddenError,
+  InternalServerError,
+  MethodNotAllowedError,
+  UnauthorizedError,
+  ValidationError,
+};

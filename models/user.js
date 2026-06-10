@@ -1,6 +1,6 @@
 import database from "infra/database.js";
 import crypto from "node:crypto";
-import { ValidationError } from "infra/erros.js";
+import { UnauthorizedError, ValidationError } from "infra/erros.js";
 import passwordService from "models/password.js";
 
 class UserService {
@@ -52,6 +52,57 @@ class UserService {
     } finally {
       await client.end();
     }
+  }
+
+  async findOneByEmailWithPassword(email) {
+    if (!email) {
+      return null;
+    }
+
+    const normalizedEmail = String(email).toLowerCase();
+    const client = await database.getNewClient();
+
+    try {
+      const result = await client.query(
+        `
+        SELECT id, email, username, password, created_at, updated_at
+        FROM users
+        WHERE LOWER(email) = $1
+        LIMIT 1
+        `,
+        [normalizedEmail],
+      );
+
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async authenticate({ email, password }) {
+    const userWithPassword = await this.findOneByEmailWithPassword(email);
+
+    if (!userWithPassword) {
+      throw new UnauthorizedError({
+        message: "Dados de autenticação não conferem.",
+        action: "Verifique se o email e a senha estão corretos.",
+      });
+    }
+
+    const passwordMatches = await passwordService.compare(
+      password,
+      userWithPassword.password,
+    );
+
+    if (!passwordMatches) {
+      throw new UnauthorizedError({
+        message: "Dados de autenticação não conferem.",
+        action: "Verifique se o email e a senha estão corretos.",
+      });
+    }
+
+    const { password: _password, ...user } = userWithPassword;
+    return user;
   }
 
   async findOneByUsername(username) {

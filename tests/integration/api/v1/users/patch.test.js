@@ -51,6 +51,18 @@ async function createUser(userData) {
   return response.json();
 }
 
+async function createSession({ email, password }) {
+  const response = await fetch(`${BASE}/api/v1/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  expect(response.status).toBe(201);
+
+  const setCookieHeader = response.headers.get("set-cookie");
+  return setCookieHeader?.split(";")[0] || null;
+}
+
 async function getUserFromDatabaseByUsername(username) {
   const client = new Client(postgresConfig);
 
@@ -74,9 +86,17 @@ describe("PATCH /api/v1/users/[username]", () => {
       password: "password123",
     });
 
+    const sessionCookie = await createSession({
+      email: "old-email@example.com",
+      password: "password123",
+    });
+
     const response = await fetch(`${BASE}/api/v1/users/patch-email-user`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ email: "NEW-EMAIL@EXAMPLE.COM" }),
     });
 
@@ -97,9 +117,17 @@ describe("PATCH /api/v1/users/[username]", () => {
       password: "password123",
     });
 
+    const sessionCookie = await createSession({
+      email: "update-username@example.com",
+      password: "password123",
+    });
+
     const response = await fetch(`${BASE}/api/v1/users/before-update`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ username: "After-Update" }),
     });
 
@@ -124,13 +152,21 @@ describe("PATCH /api/v1/users/[username]", () => {
       password: "old-password",
     });
 
+    const sessionCookie = await createSession({
+      email: "update-password@example.com",
+      password: "old-password",
+    });
+
     const userBeforeUpdate =
       await getUserFromDatabaseByUsername("password-user");
     const previousPasswordHash = userBeforeUpdate.password;
 
     const response = await fetch(`${BASE}/api/v1/users/password-user`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ password: "new-password-123" }),
     });
 
@@ -161,9 +197,17 @@ describe("PATCH /api/v1/users/[username]", () => {
       password: "password123",
     });
 
+    const sessionCookie = await createSession({
+      email: "owner2@example.com",
+      password: "password123",
+    });
+
     const response = await fetch(`${BASE}/api/v1/users/owner2`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ email: "OWNER1@EXAMPLE.COM" }),
     });
 
@@ -188,9 +232,17 @@ describe("PATCH /api/v1/users/[username]", () => {
       password: "password123",
     });
 
+    const sessionCookie = await createSession({
+      email: "username-owner2@example.com",
+      password: "password123",
+    });
+
     const response = await fetch(`${BASE}/api/v1/users/username-owner2`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ username: "USERNAME-OWNER1" }),
     });
 
@@ -202,15 +254,93 @@ describe("PATCH /api/v1/users/[username]", () => {
     );
   });
 
-  test("should return 404 when user does not exist", async () => {
-    const response = await fetch(`${BASE}/api/v1/users/non-existent-user`, {
+  test("should return 401 when authenticated user was deleted from database", async () => {
+    await createUser({
+      email: "ghost-user@example.com",
+      username: "ghost-user",
+      password: "password123",
+    });
+
+    const sessionCookie = await createSession({
+      email: "ghost-user@example.com",
+      password: "password123",
+    });
+
+    const client = new Client(postgresConfig);
+    await client.connect();
+    try {
+      await client.query(`DELETE FROM users WHERE LOWER(username) = LOWER($1)`, [
+        "ghost-user",
+      ]);
+    } finally {
+      await client.end();
+    }
+
+    const response = await fetch(`${BASE}/api/v1/users/ghost-user`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
       body: JSON.stringify({ email: "nobody@example.com" }),
     });
 
-    expect(response.status).toBe(404);
-    const body = await response.json();
-    expect(body).toEqual({ message: "User not found" });
+    expect(response.status).toBe(401);
+    const errorBody = await response.json();
+    expect(errorBody.name).toBe("UnauthorizedError");
+  });
+
+  test("should return 401 when user is not authenticated", async () => {
+    await createUser({
+      email: "unauthenticated@example.com",
+      username: "unauthenticated-user",
+      password: "password123",
+    });
+
+    const response = await fetch(`${BASE}/api/v1/users/unauthenticated-user`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "new-email@example.com" }),
+    });
+
+    expect(response.status).toBe(401);
+    const errorBody = await response.json();
+    expect(errorBody.name).toBe("UnauthorizedError");
+    expect(errorBody.message).toBe("Usuário não autenticado.");
+  });
+
+  test("should return 403 when authenticated user tries to update another user", async () => {
+    await createUser({
+      email: "user-a@example.com",
+      username: "user-a",
+      password: "password123",
+    });
+
+    await createUser({
+      email: "user-b@example.com",
+      username: "user-b",
+      password: "password123",
+    });
+
+    const sessionCookie = await createSession({
+      email: "user-a@example.com",
+      password: "password123",
+    });
+
+    const response = await fetch(`${BASE}/api/v1/users/user-b`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: sessionCookie,
+      },
+      body: JSON.stringify({ email: "hacked@example.com" }),
+    });
+
+    expect(response.status).toBe(403);
+    const errorBody = await response.json();
+    expect(errorBody.name).toBe("ForbiddenError");
+    expect(errorBody.message).toBe(
+      "Você não tem permissão para atualizar este usuário.",
+    );
   });
 });

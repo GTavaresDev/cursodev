@@ -1,7 +1,22 @@
+import { requireAuthenticatedUser } from "infra/auth.js";
 import userService from "models/user.js";
-import { ValidationError } from "infra/erros.js";
+import {
+  ForbiddenError,
+  UnauthorizedError,
+  ValidationError,
+} from "infra/erros.js";
 
 async function patchUserByUsername(req, res, username) {
+  const authenticatedUser = await requireAuthenticatedUser(req);
+  const normalizedUsername = String(username).toLowerCase();
+
+  if (authenticatedUser.username !== normalizedUsername) {
+    throw new ForbiddenError({
+      message: "Você não tem permissão para atualizar este usuário.",
+      action: "Você só pode atualizar os seus próprios dados de login.",
+    });
+  }
+
   const updatedUser = await userService.updateByUsername(username, req.body);
 
   if (!updatedUser) {
@@ -20,7 +35,7 @@ export default async function getUserByUsername(req, res) {
     const { username } = req.query;
 
     if (req.method === "PATCH") {
-      return patchUserByUsername(req, res, username);
+      return await patchUserByUsername(req, res, username);
     }
 
     const user = await userService.findOneByUsername(username);
@@ -31,7 +46,11 @@ export default async function getUserByUsername(req, res) {
 
     return res.status(200).json(user);
   } catch (error) {
-    if (error instanceof ValidationError) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UnauthorizedError ||
+      error instanceof ForbiddenError
+    ) {
       return res.status(error.statusCode).json(error.toJSON());
     }
 
