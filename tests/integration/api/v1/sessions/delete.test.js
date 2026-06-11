@@ -45,7 +45,9 @@ async function countSessionsInDatabase() {
 
   await client.connect();
   try {
-    const result = await client.query(`SELECT COUNT(*)::int AS total FROM sessions`);
+    const result = await client.query(
+      `SELECT COUNT(*)::int AS total FROM sessions`,
+    );
     return result.rows[0].total;
   } finally {
     await client.end();

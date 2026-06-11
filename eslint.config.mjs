@@ -1,11 +1,5 @@
-import { FlatCompat } from "@eslint/eslintrc";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import jest from "eslint-plugin-jest";
-
-const compat = new FlatCompat({
-  baseDirectory: path.dirname(fileURLToPath(import.meta.url)),
-});
 
 const config = [
   {
@@ -17,7 +11,7 @@ const config = [
       "build/**",
     ],
   },
-  ...compat.extends("next/core-web-vitals"),
+  ...nextCoreWebVitals,
   {
     files: ["tests/**/*.js", "**/*.test.js"],
     ...jest.configs["flat/recommended"],

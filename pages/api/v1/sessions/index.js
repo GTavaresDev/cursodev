@@ -63,7 +63,10 @@ export default async function sessions(req, res) {
 
     return await deleteSession(req, res);
   } catch (error) {
-    if (error instanceof ValidationError || error instanceof UnauthorizedError) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof UnauthorizedError
+    ) {
       return res.status(error.statusCode).json(error.toJSON());
     }
 

@@ -269,9 +269,10 @@ describe("PATCH /api/v1/users/[username]", () => {
     const client = new Client(postgresConfig);
     await client.connect();
     try {
-      await client.query(`DELETE FROM users WHERE LOWER(username) = LOWER($1)`, [
-        "ghost-user",
-      ]);
+      await client.query(
+        `DELETE FROM users WHERE LOWER(username) = LOWER($1)`,
+        ["ghost-user"],
+      );
     } finally {
       await client.end();
     }

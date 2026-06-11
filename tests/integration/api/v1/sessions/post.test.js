@@ -97,16 +97,18 @@ describe("POST /api/v1/sessions", () => {
         expect(responseBody).not.toHaveProperty("password");
 
         const setCookieHeader = response.headers.get("set-cookie");
-        expect(setCookieHeader).toMatch(/^session_id=[^;]+; HttpOnly; Path=\/;/);
+        expect(setCookieHeader).toMatch(
+          /^session_id=[^;]+; HttpOnly; Path=\/;/,
+        );
 
         const sessionsInDatabase = await getSessionsFromDatabaseByUserId(
           user.id,
         );
         expect(sessionsInDatabase).toHaveLength(1);
         expect(sessionsInDatabase[0].token).toBeTruthy();
-        expect(new Date(sessionsInDatabase[0].expires_at).getTime()).toBeGreaterThan(
-          Date.now(),
-        );
+        expect(
+          new Date(sessionsInDatabase[0].expires_at).getTime(),
+        ).toBeGreaterThan(Date.now());
       });
     });
 
