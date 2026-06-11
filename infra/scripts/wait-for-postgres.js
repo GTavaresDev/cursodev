@@ -2,6 +2,7 @@ const dotenv = require("dotenv");
 const dotenvExpand = require("dotenv-expand");
 const { createConnection } = require("net");
 const { Client } = require("pg");
+require("dotenv").config({ path: ".env.development" });
 
 dotenvExpand.expand(dotenv.config({ path: ".env.development" }));
 

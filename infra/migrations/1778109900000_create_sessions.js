@@ -3,24 +3,25 @@
 exports.shorthands = undefined;
 
 exports.up = (pgm) => {
-  pgm.createTable("users", {
+  pgm.createTable("sessions", {
     id: {
       type: "uuid",
       primaryKey: true,
       default: pgm.func("gen_random_uuid()"),
     },
-    email: {
-      type: "varchar(254)",
+    user_id: {
+      type: "uuid",
       notNull: true,
-      unique: true,
+      references: "users(id)",
+      onDelete: "CASCADE",
     },
-    username: {
+    token: {
       type: "varchar(255)",
       notNull: true,
       unique: true,
     },
-    password: {
-      type: "varchar(255)",
+    expires_at: {
+      type: "timestamp",
       notNull: true,
     },
     created_at: {
@@ -34,8 +35,11 @@ exports.up = (pgm) => {
       default: pgm.func("CURRENT_TIMESTAMP"),
     },
   });
+
+  pgm.createIndex("sessions", "user_id");
+  pgm.createIndex("sessions", "token");
 };
 
 exports.down = (pgm) => {
-  pgm.dropTable("users");
+  pgm.dropTable("sessions");
 };

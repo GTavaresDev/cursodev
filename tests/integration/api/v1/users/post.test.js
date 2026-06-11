@@ -1,6 +1,7 @@
 const dotenv = require("dotenv");
 const { Client } = require("pg");
 const orchestrator = require("tests/orchestrator.js");
+const password = require("models/password.js").default;
 
 dotenv.config({ path: ".env.development" });
 
@@ -31,10 +32,10 @@ async function cleanDatabase() {
 }
 
 async function runMigrations() {
-  const BASE =
+  const baseUrl =
     process.env.TEST_BASE_URL ||
     `http://localhost:${process.env.TEST_PORT || 4000}`;
-  await fetch(`${BASE}/api/v1/migrations`, {
+  await fetch(`${baseUrl}/api/v1/migrations`, {
     method: "POST",
   });
 }
@@ -77,7 +78,7 @@ describe("POST /api/v1/users", () => {
   describe("Anonymous user", () => {
     describe("when creating a valid user", () => {
       test("should return 201 and the created user", async () => {
-        const BASE =
+        const baseUrl =
           process.env.TEST_BASE_URL ||
           `http://localhost:${process.env.TEST_PORT || 4000}`;
         const userData = {
@@ -86,7 +87,7 @@ describe("POST /api/v1/users", () => {
           password: "securePassword123",
         };
 
-        const response = await fetch(`${BASE}/api/v1/users`, {
+        const response = await fetch(`${baseUrl}/api/v1/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(userData),
@@ -99,13 +100,15 @@ describe("POST /api/v1/users", () => {
         expect(responseBody.username).toBe(userData.username);
         expect(responseBody).not.toHaveProperty("password");
 
-        // Verify exactly what was stored in the database
         const userInDatabase = await getUserFromDatabase(userData.email);
         expect(userInDatabase).not.toBeNull();
         expect(userInDatabase.id).toBe(responseBody.id);
         expect(userInDatabase.email).toBe(userData.email);
         expect(userInDatabase.username).toBe(userData.username);
-        expect(userInDatabase.password).toBe(userData.password);
+        expect(userInDatabase.password).not.toBe(userData.password);
+        expect(
+          await password.compare(userData.password, userInDatabase.password),
+        ).toBe(true);
         expect(userInDatabase.created_at).toBeTruthy();
         expect(userInDatabase.updated_at).toBeTruthy();
       });
@@ -121,38 +124,35 @@ describe("POST /api/v1/users", () => {
         expect(insertedUser.email).toBe("direct@example.com");
         expect(insertedUser.username).toBe("directuser");
         expect(insertedUser).not.toHaveProperty("password");
-        console.log("Inserted user directly into database:", insertedUser);
       });
     });
 
     describe("when creating a duplicate email user", () => {
       test("should return 409 when email already exists (case-insensitive)", async () => {
-        const BASE =
+        const baseUrl =
           process.env.TEST_BASE_URL ||
           `http://localhost:${process.env.TEST_PORT || 4000}`;
 
-        // First user
         const firstUser = {
           email: "duplicate@example.com",
           username: "firstuser",
           password: "password123",
         };
 
-        const firstResponse = await fetch(`${BASE}/api/v1/users`, {
+        const firstResponse = await fetch(`${baseUrl}/api/v1/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(firstUser),
         });
         expect(firstResponse.status).toBe(201);
 
-        // Second user with same email (different case)
         const secondUser = {
           email: "DUPLICATE@EXAMPLE.COM",
           username: "seconduser",
           password: "password456",
         };
 
-        const secondResponse = await fetch(`${BASE}/api/v1/users`, {
+        const secondResponse = await fetch(`${baseUrl}/api/v1/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(secondUser),
@@ -173,7 +173,7 @@ describe("POST /api/v1/users", () => {
 
     describe("when creating a duplicate username user", () => {
       test("should return 409 when username already exists (case-insensitive)", async () => {
-        const BASE =
+        const baseUrl =
           process.env.TEST_BASE_URL ||
           `http://localhost:${process.env.TEST_PORT || 4000}`;
 
@@ -183,7 +183,7 @@ describe("POST /api/v1/users", () => {
           password: "password123",
         };
 
-        const firstResponse = await fetch(`${BASE}/api/v1/users`, {
+        const firstResponse = await fetch(`${baseUrl}/api/v1/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(firstUser),
@@ -196,7 +196,7 @@ describe("POST /api/v1/users", () => {
           password: "password456",
         };
 
-        const secondResponse = await fetch(`${BASE}/api/v1/users`, {
+        const secondResponse = await fetch(`${baseUrl}/api/v1/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(secondUser),
