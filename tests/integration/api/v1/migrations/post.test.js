@@ -1,5 +1,6 @@
 const dotenv = require("dotenv");
 const { Client } = require("pg");
+const orchestrator = require("tests/orchestrator.js");
 
 dotenv.config({ path: ".env.development" });
 
@@ -13,6 +14,7 @@ const postgresConfig = {
 };
 
 beforeEach(async () => {
+  await orchestrator.waitForAllServices();
   await cleanDatabase();
 });
 

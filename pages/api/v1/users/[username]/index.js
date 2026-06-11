@@ -26,7 +26,7 @@ async function patchUserByUsername(req, res, username) {
   return res.status(200).json(updatedUser);
 }
 
-export default async function getUserByUsername(req, res) {
+export default async function userByUsername(req, res) {
   if (req.method !== "GET" && req.method !== "PATCH") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -54,7 +54,7 @@ export default async function getUserByUsername(req, res) {
       return res.status(error.statusCode).json(error.toJSON());
     }
 
-    console.error("PATCH /api/v1/users/[username] error:", error);
+    console.error(`${req.method} /api/v1/users/[username] error:`, error);
     return res.status(500).json({
       name: "InternalServerError",
       message: "Entre em contato com o suporte para resolver este problema.",

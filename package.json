@@ -20,7 +20,7 @@
     "test:ci": "node infra/scripts/run-test-watch.js --ci",
     "test:watch": "node infra/scripts/run-test-watch.js",
     "posttest": "npm run services:down",
-    "migration:create": "node-pg-migrate -m infra/migrations create",
+    "migration:create": "node infra/create-migration.js",
     "migration:up": "node-pg-migrate -m infra/migrations --envPath .env.development up",
     "migrations:create": "npm run migration:create",
     "migrations:up": "npm run migration:up",
@@ -37,10 +37,13 @@
     "dotenv": "17.4.2",
     "dotenv-expand": "13.0.0",
     "next": "16.2.6",
+    "next-connect": "1.0.0",
     "node-pg-migrate": "8.0.4",
     "pg": "8.21.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "swr": "2.4.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

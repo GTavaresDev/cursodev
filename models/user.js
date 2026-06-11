@@ -5,7 +5,6 @@ import passwordService from "models/password.js";
 
 class UserService {
   async create({ email, username, password }) {
-    // Normalize email to lowercase
     const normalizedEmail = email.toLowerCase();
     const normalizedUsername = username.toLowerCase();
     const hashedPassword = await passwordService.hash(password);
@@ -13,7 +12,6 @@ class UserService {
     const client = await database.getNewClient();
 
     try {
-      // Check if email already exists (case-insensitive)
       const existingUser = await client.query(
         `SELECT id FROM users WHERE LOWER(email) = $1`,
         [normalizedEmail],
@@ -106,14 +104,24 @@ class UserService {
   }
 
   async findOneByUsername(username) {
-    if (!username) return null;
+    if (!username) {
+      return null;
+    }
+
     const normalizedUsername = String(username).toLowerCase();
     const client = await database.getNewClient();
+
     try {
       const result = await client.query(
-        `SELECT id, email, username, created_at, updated_at FROM users WHERE LOWER(username) = $1 LIMIT 1`,
+        `
+        SELECT id, email, username, created_at, updated_at
+        FROM users
+        WHERE LOWER(username) = $1
+        LIMIT 1
+        `,
         [normalizedUsername],
       );
+
       return result.rows[0] || null;
     } finally {
       await client.end();
@@ -122,11 +130,18 @@ class UserService {
 
   async findByUsername(username) {
     const client = await database.getNewClient();
+
     try {
       const result = await client.query(
-        `SELECT id, email, username, created_at, updated_at FROM users WHERE username = $1 LIMIT 1`,
+        `
+        SELECT id, email, username, created_at, updated_at
+        FROM users
+        WHERE username = $1
+        LIMIT 1
+        `,
         [username],
       );
+
       return result.rows[0] || null;
     } finally {
       await client.end();
@@ -134,14 +149,21 @@ class UserService {
   }
 
   async updateByUsername(currentUsername, updates = {}) {
-    if (!currentUsername) return null;
+    if (!currentUsername) {
+      return null;
+    }
 
     const normalizedCurrentUsername = String(currentUsername).toLowerCase();
     const client = await database.getNewClient();
 
     try {
       const existingUserResult = await client.query(
-        `SELECT id, email, username, created_at, updated_at FROM users WHERE LOWER(username) = $1 LIMIT 1`,
+        `
+        SELECT id, email, username, created_at, updated_at
+        FROM users
+        WHERE LOWER(username) = $1
+        LIMIT 1
+        `,
         [normalizedCurrentUsername],
       );
 
