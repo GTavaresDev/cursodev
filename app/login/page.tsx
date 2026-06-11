@@ -4,7 +4,7 @@ import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = {
   title: "Entrar",
-  description: "Acesse sua conta no blog.",
+  description: "Acesse sua conta.",
 };
 
 export default function LoginPage() {
@@ -18,8 +18,7 @@ export default function LoginPage() {
           Entre para continuar sua sessao
         </h1>
         <p className="mt-5 max-w-lg text-lg leading-8 text-muted">
-          Use o email e a senha cadastrados para acessar as areas autenticadas
-          do blog.
+          Use o email e a senha cadastrados para acessar sua conta.
         </p>
       </div>
 

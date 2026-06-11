@@ -31,7 +31,6 @@
 
 html {
   min-height: 100%;
-  scroll-padding-top: 96px;
 }
 
 body {
@@ -47,59 +46,6 @@ body {
 a {
   color: inherit;
   text-decoration: none;
-}
-
-img {
-  display: block;
-  max-width: 100%;
-}
-
-.prose {
-  color: rgb(var(--foreground));
-  font-size: 18px;
-  line-height: 1.75;
-}
-
-.prose > * + * {
-  margin-top: 1.5rem;
-}
-
-.prose h2,
-.prose h3 {
-  color: rgb(var(--color-primary));
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.prose h2 {
-  font-size: 1.5rem;
-  margin-top: 3rem;
-}
-
-.prose h3 {
-  font-size: 1.25rem;
-  margin-top: 2rem;
-}
-
-.prose p {
-  margin-bottom: 0;
-}
-
-.prose a {
-  color: rgb(var(--color-secondary));
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-.prose ul,
-.prose ol {
-  padding-left: 1.5rem;
-}
-
-.prose blockquote {
-  border-left: 4px solid rgb(var(--color-accent));
-  color: rgb(var(--color-muted));
-  padding-left: 1rem;
 }
 
 .skeleton {

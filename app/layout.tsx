@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import "./styles/globals.css";
-import { Footer } from "./components/blog/Footer";
-import { Header } from "./components/blog/Header";
 
 export const metadata: Metadata = {
   title: {
-    default: "Blog",
-    template: "%s | Blog",
+    default: "Autenticacao",
+    template: "%s | Autenticacao",
   },
-  description: "Artigos, notas e publicacoes recentes.",
+  description: "Acesso autenticado ao sistema.",
 };
 
 export default function RootLayout({
@@ -19,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <Header />
-        <main className="min-h-screen pt-24">{children}</main>
-        <Footer />
+        <main className="min-h-screen">{children}</main>
       </body>
     </html>
   );
