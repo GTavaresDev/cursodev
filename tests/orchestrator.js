@@ -1,102 +1,57 @@
-const retry = require("async-retry");
-const { faker } = require("@faker-js/faker");
+import retry from "async-retry";
+import { faker } from "@faker-js/faker";
 
-function getBaseUrl() {
-  return (
-    process.env.TEST_BASE_URL ||
-    `http://localhost:${process.env.TEST_PORT || 4000}`
-  );
-}
+import database from "infra/database.js";
+import migrator from "models/migrator.js";
+import user from "models/user.js";
+import session from "models/session.js";
 
 async function waitForAllServices() {
-  return retry(fetchStatusPage, {
-    retries: 100,
-    maxTimeout: 1000,
-  });
+  await waitForWebServer();
 
-  async function fetchStatusPage(bail, tryNumber) {
-    const baseUrl = getBaseUrl();
+  async function waitForWebServer() {
+    return retry(fetchStatusPage, {
+      retries: 100,
+      maxTimeout: 1000,
+    });
 
-    try {
-      const response = await fetch(`${baseUrl}/api/v1/status`);
+    async function fetchStatusPage() {
+      const response = await fetch("http://localhost:3000/api/v1/status");
 
-      if (!response.ok) {
-        throw new Error(
-          `Status page not available yet. Status: ${response.status}`,
-        );
+      if (response.status !== 200) {
+        throw Error();
       }
-    } catch (error) {
-      if (tryNumber >= 100) {
-        bail(
-          new Error(
-            `Servidor de testes indisponível em ${baseUrl}/api/v1/status. Inicie com "PORT=4000 next dev" ou use "npm run test".`,
-          ),
-        );
-        return;
-      }
-
-      throw error;
     }
   }
 }
 
-waitForAllServices.createUser = async function createUser(userData = {}) {
-  const generatedUserData = {
-    email: faker.internet.email().toLowerCase(),
-    username: faker.internet.username().toLowerCase(),
-    password: faker.internet.password({ length: 12 }),
-  };
-
-  const response = await fetch(`${getBaseUrl()}/api/v1/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ...generatedUserData,
-      ...userData,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create user. Status: ${response.status}`);
-  }
-
-  return response.json();
-};
-
-waitForAllServices.createSession = async function createSession({
-  email,
-  password,
-}) {
-  const response = await fetch(`${getBaseUrl()}/api/v1/sessions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create session. Status: ${response.status}`);
-  }
-
-  const setCookieHeader = response.headers.get("set-cookie");
-  const sessionCookie = setCookieHeader?.split(";")[0] || null;
-
-  return {
-    user: await response.json(),
-    sessionCookie,
-  };
-};
+async function clearDatabase() {
+  await database.query("drop schema public cascade; create schema public;");
+}
 
 async function runPendingMigrations() {
-  const migrator = (await import("../models/migrator.js")).default;
-  await migrator.runMigrations();
+  await migrator.runPendingMigrations();
+}
+
+async function createUser(userObject) {
+  return await user.create({
+    username:
+      userObject?.username || faker.internet.username().replace(/[_.-]/g, ""),
+    email: userObject?.email || faker.internet.email(),
+    password: userObject?.password || "validpassword",
+  });
+}
+
+async function createSession(userId) {
+  return await session.create(userId);
 }
 
 const orchestrator = {
   waitForAllServices,
+  clearDatabase,
   runPendingMigrations,
-  createUser: waitForAllServices.createUser,
-  createSession: waitForAllServices.createSession,
-  default: waitForAllServices,
+  createUser,
+  createSession,
 };
 
-module.exports = orchestrator;
+export default orchestrator;

@@ -1,25 +1,15 @@
-import userService from "models/user.js";
-import { ValidationError } from "infra/erros.js";
+import { createRouter } from "next-connect";
+import controller from "infra/controller.js";
+import user from "models/user.js";
 
-export default async function users(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+const router = createRouter();
 
-  try {
-    const { email, username, password } = req.body;
-    const user = await userService.create({ email, username, password });
-    return res.status(201).json(user);
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      return res.status(error.statusCode).json(error.toJSON());
-    }
+router.post(postHandler);
 
-    console.error("POST /api/v1/users error:", error);
-    return res.status(500).json({
-      name: "InternalServerError",
-      message: "Entre em contato com o suporte para resolver este problema.",
-      statusCode: 500,
-    });
-  }
+export default router.handler(controller.errorHandlers);
+
+async function postHandler(request, response) {
+  const userInputValues = request.body;
+  const newUser = await user.create(userInputValues);
+  return response.status(201).json(newUser);
 }
