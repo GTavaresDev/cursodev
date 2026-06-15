@@ -1,217 +1,136 @@
-const dotenv = require("dotenv");
-const { Client } = require("pg");
-const orchestrator = require("tests/orchestrator.js");
-const password = require("models/password.js").default;
+import { version as uuidVersion } from "uuid";
+import orchestrator from "tests/orchestrator.js";
+import user from "models/user.js";
+import password from "models/password.js";
 
-dotenv.config({ path: ".env.development" });
-
-const postgresConfig = {
-  host: process.env.POSTGRES_HOST || "localhost",
-  port: Number(process.env.POSTGRES_PORT || 5432),
-  user: process.env.POSTGRES_USER || "local_user",
-  password: String(process.env.POSTGRES_PASSWORD || "local_password"),
-  database: process.env.POSTGRES_DB || "local_db",
-  ssl: false,
-};
-
-beforeEach(async () => {
+beforeAll(async () => {
   await orchestrator.waitForAllServices();
-  await cleanDatabase();
-  await runMigrations();
+  await orchestrator.clearDatabase();
+  await orchestrator.runPendingMigrations();
 });
-
-async function cleanDatabase() {
-  const client = new Client(postgresConfig);
-
-  await client.connect();
-  try {
-    await client.query("drop schema public cascade; create schema public;");
-  } finally {
-    await client.end();
-  }
-}
-
-async function runMigrations() {
-  const baseUrl =
-    process.env.TEST_BASE_URL ||
-    `http://localhost:${process.env.TEST_PORT || 4000}`;
-  await fetch(`${baseUrl}/api/v1/migrations`, {
-    method: "POST",
-  });
-}
-
-async function insertUserDirectly(email, username, password) {
-  const client = new Client(postgresConfig);
-
-  await client.connect();
-  try {
-    const result = await client.query(
-      `
-      INSERT INTO users (email, username, password, created_at, updated_at)
-      VALUES ($1, $2, $3, NOW(), NOW())
-      RETURNING id, email, username, created_at, updated_at
-      `,
-      [email, username, password],
-    );
-    return result.rows[0];
-  } finally {
-    await client.end();
-  }
-}
-
-async function getUserFromDatabase(email) {
-  const client = new Client(postgresConfig);
-
-  await client.connect();
-  try {
-    const result = await client.query(
-      `SELECT id, email, username, password, created_at, updated_at FROM users WHERE email = $1`,
-      [email],
-    );
-    return result.rows[0] || null;
-  } finally {
-    await client.end();
-  }
-}
 
 describe("POST /api/v1/users", () => {
   describe("Anonymous user", () => {
-    describe("when creating a valid user", () => {
-      test("should return 201 and the created user", async () => {
-        const baseUrl =
-          process.env.TEST_BASE_URL ||
-          `http://localhost:${process.env.TEST_PORT || 4000}`;
-        const userData = {
-          email: "test@example.com",
-          username: "testuser",
-          password: "securePassword123",
-        };
-
-        const response = await fetch(`${baseUrl}/api/v1/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(userData),
-        });
-        expect(response.status).toBe(201);
-
-        const responseBody = await response.json();
-        expect(responseBody).toHaveProperty("id");
-        expect(responseBody.email).toBe(userData.email);
-        expect(responseBody.username).toBe(userData.username);
-        expect(responseBody).not.toHaveProperty("password");
-
-        const userInDatabase = await getUserFromDatabase(userData.email);
-        expect(userInDatabase).not.toBeNull();
-        expect(userInDatabase.id).toBe(responseBody.id);
-        expect(userInDatabase.email).toBe(userData.email);
-        expect(userInDatabase.username).toBe(userData.username);
-        expect(userInDatabase.password).not.toBe(userData.password);
-        expect(
-          await password.compare(userData.password, userInDatabase.password),
-        ).toBe(true);
-        expect(userInDatabase.created_at).toBeTruthy();
-        expect(userInDatabase.updated_at).toBeTruthy();
+    test("With unique and valid data", async () => {
+      const response = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "filipedeschamps",
+          email: "contato@curso.dev",
+          password: "senha123",
+        }),
       });
 
-      test("should insert user directly in database with SQL query", async () => {
-        const insertedUser = await insertUserDirectly(
-          "direct@example.com",
-          "directuser",
-          "hashedPassword456",
-        );
+      expect(response.status).toBe(201);
 
-        expect(insertedUser).toHaveProperty("id");
-        expect(insertedUser.email).toBe("direct@example.com");
-        expect(insertedUser.username).toBe("directuser");
-        expect(insertedUser).not.toHaveProperty("password");
+      const responseBody = await response.json();
+
+      expect(responseBody).toEqual({
+        id: responseBody.id,
+        username: "filipedeschamps",
+        email: "contato@curso.dev",
+        password: responseBody.password,
+        created_at: responseBody.created_at,
+        updated_at: responseBody.updated_at,
+      });
+
+      expect(uuidVersion(responseBody.id)).toBe(4);
+      expect(Date.parse(responseBody.created_at)).not.toBeNaN();
+      expect(Date.parse(responseBody.updated_at)).not.toBeNaN();
+
+      const userInDatabase = await user.findOneByUsername("filipedeschamps");
+      const correctPasswordMatch = await password.compare(
+        "senha123",
+        userInDatabase.password,
+      );
+
+      const incorrectPasswordMatch = await password.compare(
+        "SenhaErrada",
+        userInDatabase.password,
+      );
+
+      expect(correctPasswordMatch).toBe(true);
+      expect(incorrectPasswordMatch).toBe(false);
+    });
+
+    test("With duplicated 'email'", async () => {
+      const response1 = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "emailduplicado1",
+          email: "duplicado@curso.dev",
+          password: "senha123",
+        }),
+      });
+
+      expect(response1.status).toBe(201);
+
+      const response2 = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "emailduplicado2",
+          email: "Duplicado@curso.dev",
+          password: "senha123",
+        }),
+      });
+
+      expect(response2.status).toBe(400);
+
+      const response2Body = await response2.json();
+
+      expect(response2Body).toEqual({
+        name: "ValidationError",
+        message: "O email informado já está sendo utilizado.",
+        action: "Utilize outro email para realizar esta operação.",
+        status_code: 400,
       });
     });
 
-    describe("when creating a duplicate email user", () => {
-      test("should return 409 when email already exists (case-insensitive)", async () => {
-        const baseUrl =
-          process.env.TEST_BASE_URL ||
-          `http://localhost:${process.env.TEST_PORT || 4000}`;
-
-        const firstUser = {
-          email: "duplicate@example.com",
-          username: "firstuser",
-          password: "password123",
-        };
-
-        const firstResponse = await fetch(`${baseUrl}/api/v1/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(firstUser),
-        });
-        expect(firstResponse.status).toBe(201);
-
-        const secondUser = {
-          email: "DUPLICATE@EXAMPLE.COM",
-          username: "seconduser",
-          password: "password456",
-        };
-
-        const secondResponse = await fetch(`${baseUrl}/api/v1/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(secondUser),
-        });
-        expect(secondResponse.status).toBe(409);
-
-        const errorBody = await secondResponse.json();
-        expect(errorBody.name).toBe("ValidationError");
-        expect(errorBody.statusCode).toBe(409);
-        expect(errorBody.message).toBe(
-          "O email informado a esta sendo ultilizado.",
-        );
-        expect(errorBody.action).toBe(
-          "Utilize outro email para realizar o cadastro",
-        );
+    test("With duplicated 'username'", async () => {
+      const response1 = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "usernameduplicado",
+          email: "usernameduplicado1@curso.dev",
+          password: "senha123",
+        }),
       });
-    });
 
-    describe("when creating a duplicate username user", () => {
-      test("should return 409 when username already exists (case-insensitive)", async () => {
-        const baseUrl =
-          process.env.TEST_BASE_URL ||
-          `http://localhost:${process.env.TEST_PORT || 4000}`;
+      expect(response1.status).toBe(201);
 
-        const firstUser = {
-          email: "first-username@example.com",
-          username: "duplicateusername",
-          password: "password123",
-        };
+      const response2 = await fetch("http://localhost:3000/api/v1/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: "UsernameDuplicado",
+          email: "usernameduplicado2@curso.dev",
+          password: "senha123",
+        }),
+      });
 
-        const firstResponse = await fetch(`${baseUrl}/api/v1/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(firstUser),
-        });
-        expect(firstResponse.status).toBe(201);
+      expect(response2.status).toBe(400);
 
-        const secondUser = {
-          email: "second-username@example.com",
-          username: "DUPLICATEUSERNAME",
-          password: "password456",
-        };
+      const response2Body = await response2.json();
 
-        const secondResponse = await fetch(`${baseUrl}/api/v1/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(secondUser),
-        });
-        expect(secondResponse.status).toBe(409);
-
-        const errorBody = await secondResponse.json();
-        expect(errorBody.name).toBe("ValidationError");
-        expect(errorBody.statusCode).toBe(409);
-        expect(errorBody.message).toBe(
-          "O username informado a esta sendo ultilizado.",
-        );
-        expect(errorBody.action).toBe(
-          "Utilize outro username para realizar o cadastro",
-        );
+      expect(response2Body).toEqual({
+        name: "ValidationError",
+        message: "O username informado já está sendo utilizado.",
+        action: "Utilize outro username para realizar esta operação.",
+        status_code: 400,
       });
     });
   });

@@ -1,47 +1,52 @@
-import { runner as migrationRunner } from "node-pg-migrate";
-import { join } from "node:path";
+import migrationRunner from "node-pg-migrate";
+import { resolve } from "node:path";
 import database from "infra/database.js";
 
-class Migrator {
-  async getPendingMigrations() {
-    const dbClient = await database.getNewClient();
+const defaultMigrationOptions = {
+  dryRun: true,
+  dir: resolve("infra", "migrations"),
+  direction: "up",
+  log: () => {},
+  migrationsTable: "pgmigrations",
+};
 
-    try {
-      const pendingMigrations = await migrationRunner({
-        dbClient,
-        dryRun: true,
-        noLock: true,
-        dir: join(process.cwd(), "infra/migrations"),
-        direction: "up",
-        verbose: true,
-        migrationsTable: "pgmigrations",
-      });
+async function listPendingMigrations() {
+  let dbClient;
 
-      return pendingMigrations;
-    } finally {
-      await dbClient.end();
-    }
-  }
+  try {
+    dbClient = await database.getNewClient();
 
-  async runMigrations() {
-    const dbClient = await database.getNewClient();
-
-    try {
-      const createdMigrations = await migrationRunner({
-        dbClient,
-        dryRun: false,
-        noLock: true,
-        dir: join(process.cwd(), "infra/migrations"),
-        direction: "up",
-        verbose: true,
-        migrationsTable: "pgmigrations",
-      });
-
-      return createdMigrations;
-    } finally {
-      await dbClient.end();
-    }
+    const pendingMigrations = await migrationRunner({
+      ...defaultMigrationOptions,
+      dbClient,
+    });
+    return pendingMigrations;
+  } finally {
+    await dbClient?.end();
   }
 }
 
-export default new Migrator();
+async function runPendingMigrations() {
+  let dbClient;
+
+  try {
+    dbClient = await database.getNewClient();
+
+    const migratedMigrations = await migrationRunner({
+      ...defaultMigrationOptions,
+      dbClient,
+      dryRun: false,
+    });
+
+    return migratedMigrations;
+  } finally {
+    await dbClient?.end();
+  }
+}
+
+const migrator = {
+  listPendingMigrations,
+  runPendingMigrations,
+};
+
+export default migrator;

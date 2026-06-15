@@ -1,64 +1,24 @@
-import { requireAuthenticatedUser } from "infra/auth.js";
-import userService from "models/user.js";
-import {
-  ForbiddenError,
-  UnauthorizedError,
-  ValidationError,
-} from "infra/erros.js";
+import { createRouter } from "next-connect";
+import controller from "infra/controller.js";
+import user from "models/user.js";
 
-async function patchUserByUsername(req, res, username) {
-  const authenticatedUser = await requireAuthenticatedUser(req);
-  const normalizedUsername = String(username).toLowerCase();
+const router = createRouter();
 
-  if (authenticatedUser.username !== normalizedUsername) {
-    throw new ForbiddenError({
-      message: "Você não tem permissão para atualizar este usuário.",
-      action: "Você só pode atualizar os seus próprios dados de login.",
-    });
-  }
+router.get(getHandler);
+router.patch(patchHandler);
 
-  const updatedUser = await userService.updateByUsername(username, req.body);
+export default router.handler(controller.errorHandlers);
 
-  if (!updatedUser) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  return res.status(200).json(updatedUser);
+async function getHandler(request, response) {
+  const username = request.query.username;
+  const userFound = await user.findOneByUsername(username);
+  return response.status(200).json(userFound);
 }
 
-export default async function userByUsername(req, res) {
-  if (req.method !== "GET" && req.method !== "PATCH") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+async function patchHandler(request, response) {
+  const username = request.query.username;
+  const userInputValues = request.body;
 
-  try {
-    const { username } = req.query;
-
-    if (req.method === "PATCH") {
-      return await patchUserByUsername(req, res, username);
-    }
-
-    const user = await userService.findOneByUsername(username);
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json(user);
-  } catch (error) {
-    if (
-      error instanceof ValidationError ||
-      error instanceof UnauthorizedError ||
-      error instanceof ForbiddenError
-    ) {
-      return res.status(error.statusCode).json(error.toJSON());
-    }
-
-    console.error(`${req.method} /api/v1/users/[username] error:`, error);
-    return res.status(500).json({
-      name: "InternalServerError",
-      message: "Entre em contato com o suporte para resolver este problema.",
-      statusCode: 500,
-    });
-  }
+  const updatedUser = await user.update(username, userInputValues);
+  return response.status(200).json(updatedUser);
 }

@@ -1,88 +1,50 @@
 import { Client } from "pg";
-import { ServiceServerError } from "./erros";
-
-function getSanitizedRuntimeConfig() {
-  const databaseUrl = process.env.DATABASE_URL;
-  let databaseUrlHost = null;
-
-  if (databaseUrl) {
-    try {
-      databaseUrlHost = new URL(databaseUrl).hostname;
-    } catch {
-      databaseUrlHost = "invalid";
-    }
-  }
-
-  return {
-    nodeEnv: process.env.NODE_ENV ?? null,
-    hasDatabaseUrl: Boolean(databaseUrl),
-    databaseUrlHost,
-    postgresHost: process.env.POSTGRES_HOST ?? null,
-    postgresPort: process.env.POSTGRES_PORT ?? null,
-    vercelEnv: process.env.VERCEL_ENV ?? null,
-  };
-}
+import { ServiceError } from "./errors.js";
 
 async function query(queryObject) {
-  const client = await getNewClient();
-
+  let client;
   try {
+    client = await getNewClient();
     const result = await client.query(queryObject);
     return result;
   } catch (error) {
-    const serviceError = new ServiceServerError({ cause: error });
-    console.error(serviceError);
-    throw error;
+    const serviceErrorObject = new ServiceError({
+      message: "Erro na conexão com Banco ou na Query.",
+      cause: error,
+    });
+    throw serviceErrorObject;
   } finally {
     await client?.end();
   }
 }
 
 async function getNewClient() {
-  const hasConnectionString = Boolean(process.env.DATABASE_URL);
-  const databaseHost = process.env.POSTGRES_HOST;
-  const isLocalDatabase =
-    databaseHost === "localhost" || databaseHost === "127.0.0.1";
-
-  if (
-    process.env.NODE_ENV === "production" &&
-    !hasConnectionString &&
-    isLocalDatabase
-  ) {
-    throw new Error(
-      "Invalid production database configuration: POSTGRES_HOST points to localhost. Configure the Vercel environment with your remote Supabase Postgres credentials or DATABASE_URL.",
-    );
-  }
-
-  const client = hasConnectionString
-    ? new Client({
-        connectionString: process.env.DATABASE_URL,
-        ssl: isLocalDatabase
-          ? false
-          : {
-              rejectUnauthorized: false,
-            },
-      })
-    : new Client({
-        host: databaseHost,
-        port: Number(process.env.POSTGRES_PORT),
-        user: process.env.POSTGRES_USER,
-        password: process.env.POSTGRES_PASSWORD,
-        database: process.env.POSTGRES_DB,
-        ssl: isLocalDatabase
-          ? false
-          : {
-              rejectUnauthorized: false,
-            },
-      });
+  const client = new Client({
+    host: process.env.POSTGRES_HOST,
+    port: process.env.POSTGRES_PORT,
+    user: process.env.POSTGRES_USER,
+    database: process.env.POSTGRES_DB,
+    password: process.env.POSTGRES_PASSWORD,
+    ssl: getSSLValues(),
+  });
 
   await client.connect();
   return client;
 }
 
 const database = {
-  getNewClient,
   query,
+  getNewClient,
 };
 
 export default database;
+
+function getSSLValues() {
+  if (process.env.POSTGRES_CA) {
+    return {
+      ca: process.env.POSTGRES_CA,
+    };
+  }
+
+  return process.env.NODE_ENV === "production" ? true : false;
+}

@@ -1,9 +1,1 @@
-#!/usr/bin/env sh
-# Skip commitlint when Node major version is less than 20 (yargs-parser requires Node 20+)
-node_major=$(node -v | sed 's/^v\([0-9]\+\).*$/\1/')
-if [ "${node_major}" -lt 20 ]; then
-	echo "Skipping commitlint: Node ${node_major} < 20"
-	exit 0
-fi
-
-npx commitlint --edit "$1"
+npx commitlint --edit $1
