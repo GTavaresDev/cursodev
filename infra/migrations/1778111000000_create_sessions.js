@@ -15,6 +15,11 @@ exports.up = (pgm) => {
       references: "users",
       onDelete: "CASCADE",
     },
+    token: {
+      type: "uuid",
+      notNull: true,
+      unique: true,
+    },
     expires_at: {
       type: "timestamp",
       notNull: true,

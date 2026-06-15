@@ -48,7 +48,7 @@ function getSessionCookie(response) {
   return response.headers.get("set-cookie");
 }
 
-function getSessionIdFromCookie(cookie) {
+function getSessionTokenFromCookie(cookie) {
   const sessionCookie = cookie
     .split(";")
     .find((cookiePart) => cookiePart.trim().startsWith("session_id="));
@@ -56,14 +56,14 @@ function getSessionIdFromCookie(cookie) {
   return sessionCookie.split("=")[1];
 }
 
-async function expireSession(sessionId) {
+async function expireSession(sessionToken) {
   const client = new Client(postgresConfig);
 
   await client.connect();
   try {
     await client.query(
-      "UPDATE sessions SET expires_at = $1, updated_at = NOW() WHERE id = $2",
-      [new Date("2020-01-01T00:00:00.000Z"), sessionId],
+      "UPDATE sessions SET expires_at = $1, updated_at = NOW() WHERE token = $2",
+      [new Date("2020-01-01T00:00:00.000Z"), sessionToken],
     );
   } finally {
     await client.end();
@@ -129,9 +129,9 @@ describe("GET /api/v1/user", () => {
     test("should renew the session when the cookie is expired", async () => {
       const firstResponse = await fetch(`${BASE}/api/v1/user`);
       const firstCookie = getSessionCookie(firstResponse);
-      const firstSessionId = getSessionIdFromCookie(firstCookie);
+      const firstSessionToken = getSessionTokenFromCookie(firstCookie);
 
-      await expireSession(firstSessionId);
+      await expireSession(firstSessionToken);
 
       const renewedResponse = await fetch(`${BASE}/api/v1/user`, {
         headers: {
@@ -142,8 +142,8 @@ describe("GET /api/v1/user", () => {
       expect(renewedResponse.status).toBe(200);
 
       const renewedCookie = getSessionCookie(renewedResponse);
-      const renewedSessionId = getSessionIdFromCookie(renewedCookie);
-      expect(renewedSessionId).not.toBe(firstSessionId);
+      const renewedSessionToken = getSessionTokenFromCookie(renewedCookie);
+      expect(renewedSessionToken).not.toBe(firstSessionToken);
 
       const renewedBody = await renewedResponse.json();
       expect(renewedBody.name).toBe("session_user");

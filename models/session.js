@@ -1,8 +1,10 @@
 import database from "infra/database.js";
+import { SESSION_MAX_AGE_SECONDS } from "infra/cookies.js";
 import crypto from "node:crypto";
 
 export const SESSION_COOKIE_NAME = "session_id";
-export const SESSION_EXPIRATION_IN_MILLISECONDS = 30 * 24 * 60 * 60 * 1000;
+export const SESSION_EXPIRATION_IN_MILLISECONDS =
+  SESSION_MAX_AGE_SECONDS * 1000;
 
 class SessionService {
   createExpirationDate() {
@@ -14,25 +16,29 @@ class SessionService {
     return new Date(session.expires_at).getTime() <= Date.now();
   }
 
-  async createForUser(userId) {
+  async create(userId) {
     const client = await database.getNewClient();
     const sessionId = crypto.randomUUID();
-    const expiresAt = this.createExpirationDate();
+    const token = crypto.randomUUID();
 
     try {
       const result = await client.query(
         `
-        INSERT INTO sessions (id, user_id, expires_at, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW(), NOW())
-        RETURNING id, user_id, expires_at, created_at, updated_at
+        INSERT INTO sessions (id, user_id, token, expires_at, created_at, updated_at)
+        VALUES ($1, $2, $3, NOW() + ($4 || ' seconds')::interval, NOW(), NOW())
+        RETURNING id, user_id, token, expires_at, created_at, updated_at
         `,
-        [sessionId, userId, expiresAt],
+        [sessionId, userId, token, SESSION_MAX_AGE_SECONDS],
       );
 
       return result.rows[0];
     } finally {
       await client.end();
     }
+  }
+
+  async createForUser(userId) {
+    return this.create(userId);
   }
 
   async findByIdWithUser(sessionId) {
@@ -46,6 +52,7 @@ class SessionService {
         SELECT
           sessions.id,
           sessions.user_id,
+          sessions.token,
           sessions.expires_at,
           users.email,
           users.username
@@ -63,8 +70,87 @@ class SessionService {
     }
   }
 
+  async findValidByToken(token) {
+    if (!token) {
+      return null;
+    }
+
+    const client = await database.getNewClient();
+
+    try {
+      const result = await client.query(
+        `
+        SELECT
+          users.id,
+          users.email,
+          users.username,
+          users.created_at,
+          users.updated_at
+        FROM sessions
+        INNER JOIN users ON users.id = sessions.user_id
+        WHERE sessions.token = $1
+          AND sessions.expires_at > NOW()
+        LIMIT 1
+        `,
+        [token],
+      );
+
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async findByTokenWithUser(token) {
+    if (!token) return null;
+
+    const client = await database.getNewClient();
+
+    try {
+      const result = await client.query(
+        `
+        SELECT
+          sessions.id,
+          sessions.user_id,
+          sessions.token,
+          sessions.expires_at,
+          users.email,
+          users.username
+        FROM sessions
+        INNER JOIN users ON users.id = sessions.user_id
+        WHERE sessions.token = $1
+        LIMIT 1
+        `,
+        [token],
+      );
+
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
   async renew(session) {
-    return this.createForUser(session.user_id);
+    return this.create(session.user_id);
+  }
+
+  async invalidateByToken(token) {
+    if (!token) {
+      return false;
+    }
+
+    const client = await database.getNewClient();
+
+    try {
+      const result = await client.query(
+        `DELETE FROM sessions WHERE token = $1`,
+        [token],
+      );
+
+      return result.rowCount > 0;
+    } finally {
+      await client.end();
+    }
   }
 }
 

@@ -4,10 +4,11 @@ import {
   ValidationError,
 } from "infra/erros.js";
 import migrator from "models/migrator.js";
-import sessionService, {
-  SESSION_COOKIE_NAME,
-  SESSION_EXPIRATION_IN_MILLISECONDS,
-} from "models/session.js";
+import {
+  getSessionTokenFromRequest,
+  setSessionCookie,
+} from "infra/cookies.js";
+import sessionService from "models/session.js";
 import userService from "models/user.js";
 
 function OnNoMatchHandler(req, res) {
@@ -73,28 +74,6 @@ async function getUserByUsername(req, res) {
   }
 }
 
-function getCookieValue(req, cookieName) {
-  const cookieHeader = req.headers.cookie;
-
-  if (!cookieHeader) return null;
-
-  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
-  const cookie = cookies.find((cookie) => cookie.startsWith(`${cookieName}=`));
-
-  if (!cookie) return null;
-
-  return decodeURIComponent(cookie.split("=").slice(1).join("="));
-}
-
-function setSessionCookie(res, sessionId) {
-  const maxAgeInSeconds = Math.floor(SESSION_EXPIRATION_IN_MILLISECONDS / 1000);
-
-  res.setHeader(
-    "Set-Cookie",
-    `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Max-Age=${maxAgeInSeconds}; Path=/; HttpOnly; SameSite=Lax`,
-  );
-}
-
 function mapSessionToResponse(session) {
   return {
     id: session.user_id,
@@ -105,8 +84,8 @@ function mapSessionToResponse(session) {
 }
 
 async function getUser(req, res) {
-  const sessionId = getCookieValue(req, SESSION_COOKIE_NAME);
-  const session = await sessionService.findByIdWithUser(sessionId);
+  const sessionToken = getSessionTokenFromRequest(req);
+  const session = await sessionService.findByTokenWithUser(sessionToken);
 
   if (session && !sessionService.isExpired(session)) {
     return res.status(200).json(mapSessionToResponse(session));
@@ -118,14 +97,14 @@ async function getUser(req, res) {
       renewedSession.id,
     );
 
-    setSessionCookie(res, renewedSession.id);
+    setSessionCookie(res, renewedSession.token);
     return res.status(200).json(mapSessionToResponse(renewedSessionWithUser));
   }
 
   const user = await userService.findOrCreateDefaultSessionUser();
   const newSession = await sessionService.createForUser(user.id);
 
-  setSessionCookie(res, newSession.id);
+  setSessionCookie(res, newSession.token);
   return res.status(200).json({
     id: user.id,
     name: user.username,
