@@ -2,6 +2,12 @@ import database from "infra/database.js";
 import crypto from "node:crypto";
 import { ValidationError } from "infra/erros.js";
 
+const DEFAULT_SESSION_USER = {
+  email: "session-user@example.com",
+  username: "session_user",
+  password: "session_user_password",
+};
+
 class UserService {
   async create({ email, username, password }) {
     // Normalize email to lowercase
@@ -64,6 +70,40 @@ class UserService {
       return result.rows[0] || null;
     } finally {
       await client.end();
+    }
+  }
+
+  async findOneByEmail(email) {
+    if (!email) return null;
+    const normalizedEmail = String(email).toLowerCase();
+    const client = await database.getNewClient();
+
+    try {
+      const result = await client.query(
+        `SELECT id, email, username, created_at, updated_at FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+        [normalizedEmail],
+      );
+      return result.rows[0] || null;
+    } finally {
+      await client.end();
+    }
+  }
+
+  async findOrCreateDefaultSessionUser() {
+    const existingUser = await this.findOneByEmail(DEFAULT_SESSION_USER.email);
+
+    if (existingUser) {
+      return existingUser;
+    }
+
+    try {
+      return await this.create(DEFAULT_SESSION_USER);
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        return this.findOneByEmail(DEFAULT_SESSION_USER.email);
+      }
+
+      throw err;
     }
   }
 
