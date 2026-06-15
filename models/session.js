@@ -1,77 +1,96 @@
-import database from "infra/database.js";
-import { SESSION_MAX_AGE_SECONDS } from "infra/cookies.js";
 import crypto from "node:crypto";
+import database from "infra/database.js";
+import { UnauthorizedError } from "infra/errors";
 
-class SessionService {
-  async create(userId) {
-    const token = crypto.randomUUID();
-    const client = await database.getNewClient();
+const EXPIRATION_IN_MILLISECONDS = 60 * 60 * 24 * 30 * 1000; // 30 Days
 
-    try {
-      const result = await client.query(
-        `
-        INSERT INTO sessions (id, user_id, token, expires_at, created_at, updated_at)
-        VALUES ($1, $2, $3, NOW() + ($4 || ' seconds')::interval, NOW(), NOW())
-        RETURNING id, user_id, token, expires_at, created_at, updated_at
-        `,
-        [crypto.randomUUID(), userId, token, SESSION_MAX_AGE_SECONDS],
-      );
+async function findOneValidByToken(sessionToken) {
+  const sessionFound = await runSelectQuery(sessionToken);
 
-      return result.rows[0];
-    } finally {
-      await client.end();
-    }
-  }
+  return sessionFound;
 
-  async findValidByToken(token) {
-    if (!token) {
-      return null;
-    }
-
-    const client = await database.getNewClient();
-
-    try {
-      const result = await client.query(
-        `
+  async function runSelectQuery(sessionToken) {
+    const results = await database.query({
+      text: `
         SELECT
-          users.id,
-          users.email,
-          users.username,
-          users.created_at,
-          users.updated_at
-        FROM sessions
-        INNER JOIN users ON users.id = sessions.user_id
-        WHERE sessions.token = $1
-          AND sessions.expires_at > NOW()
-        LIMIT 1
-        `,
-        [token],
-      );
+          *
+        FROM
+          sessions
+        WHERE
+          token = $1
+          AND expires_at > NOW()
+        LIMIT
+          1
+      ;`,
+      values: [sessionToken],
+    });
 
-      return result.rows[0] || null;
-    } finally {
-      await client.end();
-    }
-  }
-
-  async invalidateByToken(token) {
-    if (!token) {
-      return false;
+    if (results.rowCount === 0) {
+      throw new UnauthorizedError({
+        message: "Usuário não possui sessão ativa.",
+        action: "Verifique se este usuário está logado e tente novamente.",
+      });
     }
 
-    const client = await database.getNewClient();
-
-    try {
-      const result = await client.query(
-        `DELETE FROM sessions WHERE token = $1`,
-        [token],
-      );
-
-      return result.rowCount > 0;
-    } finally {
-      await client.end();
-    }
+    return results.rows[0];
   }
 }
 
-export default new SessionService();
+async function create(userId) {
+  const token = crypto.randomBytes(48).toString("hex");
+  const expiresAt = new Date(Date.now() + EXPIRATION_IN_MILLISECONDS);
+
+  const newSession = await runInsertQuery(token, userId, expiresAt);
+  return newSession;
+
+  async function runInsertQuery(token, userId, expiresAt) {
+    const results = await database.query({
+      text: `
+        INSERT INTO
+          sessions (token, user_id, expires_at)
+        VALUES
+          ($1, $2, $3)
+        RETURNING
+          *
+      ;`,
+      values: [token, userId, expiresAt],
+    });
+
+    return results.rows[0];
+  }
+}
+
+async function renew(sessionId) {
+  const expiresAt = new Date(Date.now() + EXPIRATION_IN_MILLISECONDS);
+
+  const renewedSessionObject = runUpdateQuery(sessionId, expiresAt);
+  return renewedSessionObject;
+
+  async function runUpdateQuery(sessionId, expiresAt) {
+    const results = await database.query({
+      text: `
+        UPDATE
+          sessions
+        SET
+          expires_at = $2,
+          updated_at = NOW()
+        WHERE
+          id = $1
+        RETURNING
+          *
+        ;`,
+      values: [sessionId, expiresAt],
+    });
+
+    return results.rows[0];
+  }
+}
+
+const session = {
+  create,
+  findOneValidByToken,
+  renew,
+  EXPIRATION_IN_MILLISECONDS,
+};
+
+export default session;

@@ -3,61 +3,58 @@ import useSWR from "swr";
 async function fetchAPI(key) {
   const response = await fetch(key);
   const responseBody = await response.json();
-
   return responseBody;
 }
 
 export default function StatusPage() {
-  const response = useSWR("/api/v1/status", fetchAPI, {
-    refreshInterval: 5000, // Refresh every 5 seconds
-  });
   return (
-    <div>
+    <>
       <h1>Status</h1>
-      <UpdatedAT />
-      <Database />
-    </div>
+      <UpdatedAt />
+      <DatabaseStatus />
+    </>
   );
 }
 
-function UpdatedAT() {
+function UpdatedAt() {
   const { isLoading, data } = useSWR("/api/v1/status", fetchAPI, {
-    refreshInterval: 5000, // Refresh every 5 seconds
+    refreshInterval: 2000,
   });
+
   let updatedAtText = "Carregando...";
 
   if (!isLoading && data) {
-    updatedAtText = new Date(data.updated_at).toLocaleString();
+    updatedAtText = new Date(data.updated_at).toLocaleString("pt-BR");
   }
 
-  return <div>Ultima atualização: {updatedAtText}</div>;
+  return <div>Última atualização: {updatedAtText}</div>;
 }
 
-function Database() {
+function DatabaseStatus() {
   const { isLoading, data } = useSWR("/api/v1/status", fetchAPI, {
-    refreshInterval: 5000, // Refresh every 5 seconds
+    refreshInterval: 2000,
   });
 
-  let databaseInfo = {
-    version: "Carregando...",
-    openedConnections: "Carregando...",
-    maxConnections: "Carregando...",
-  };
+  let databaseStatusInformation = "Carregando...";
 
   if (!isLoading && data) {
-    databaseInfo = {
-      version: data.dependencies.database.version,
-      openedConnections: data.dependencies.database.opened_connections,
-      maxConnections: data.dependencies.database.max_connections,
-    };
+    databaseStatusInformation = (
+      <>
+        <div>Versão: {data.dependencies.database.version}</div>
+        <div>
+          Conexões abertas: {data.dependencies.database.opened_connections}
+        </div>
+        <div>
+          Conexões máximas: {data.dependencies.database.max_connections}
+        </div>
+      </>
+    );
   }
 
   return (
-    <div>
+    <>
       <h2>Database</h2>
-      <div>Versão: {databaseInfo.version}</div>
-      <div>Conexões abertas: {databaseInfo.openedConnections}</div>
-      <div>Máximo de conexões: {databaseInfo.maxConnections}</div>
-    </div>
+      <div>{databaseStatusInformation}</div>
+    </>
   );
 }

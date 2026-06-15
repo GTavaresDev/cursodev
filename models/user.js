@@ -1,244 +1,228 @@
 import database from "infra/database.js";
-import crypto from "node:crypto";
-import { UnauthorizedError, ValidationError } from "infra/erros.js";
-import passwordService from "models/password.js";
+import password from "models/password.js";
+import { ValidationError, NotFoundError } from "infra/errors.js";
 
-class UserService {
-  async create({ email, username, password }) {
-    const normalizedEmail = email.toLowerCase();
-    const normalizedUsername = username.toLowerCase();
-    const hashedPassword = await passwordService.hash(password);
+async function findOneById(id) {
+  const userFound = await runSelectQuery(id);
 
-    const client = await database.getNewClient();
+  return userFound;
 
-    try {
-      const existingUser = await client.query(
-        `SELECT id FROM users WHERE LOWER(email) = $1`,
-        [normalizedEmail],
-      );
+  async function runSelectQuery(id) {
+    const results = await database.query({
+      text: `
+        SELECT
+          *
+        FROM
+          users
+        WHERE
+          id = $1
+        LIMIT
+          1
+        ;`,
+      values: [id],
+    });
 
-      if (existingUser.rowCount > 0) {
-        throw new ValidationError({
-          message: "O email informado a esta sendo ultilizado.",
-          action: "Utilize outro email para realizar o cadastro",
-        });
-      }
-
-      const existingUsername = await client.query(
-        `SELECT id FROM users WHERE LOWER(username) = $1`,
-        [normalizedUsername],
-      );
-
-      if (existingUsername.rowCount > 0) {
-        throw new ValidationError({
-          message: "O username informado a esta sendo ultilizado.",
-          action: "Utilize outro username para realizar o cadastro",
-        });
-      }
-
-      const id = crypto.randomUUID();
-      const result = await client.query(
-        `
-        INSERT INTO users (id, email, username, password, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
-        RETURNING id, email, username, created_at, updated_at
-        `,
-        [id, normalizedEmail, normalizedUsername, hashedPassword],
-      );
-
-      return result.rows[0];
-    } finally {
-      await client.end();
-    }
-  }
-
-  async findOneByEmailWithPassword(email) {
-    if (!email) {
-      return null;
-    }
-
-    const normalizedEmail = String(email).toLowerCase();
-    const client = await database.getNewClient();
-
-    try {
-      const result = await client.query(
-        `
-        SELECT id, email, username, password, created_at, updated_at
-        FROM users
-        WHERE LOWER(email) = $1
-        LIMIT 1
-        `,
-        [normalizedEmail],
-      );
-
-      return result.rows[0] || null;
-    } finally {
-      await client.end();
-    }
-  }
-
-  async authenticate({ email, password }) {
-    const userWithPassword = await this.findOneByEmailWithPassword(email);
-
-    if (!userWithPassword) {
-      throw new UnauthorizedError({
-        message: "Dados de autenticação não conferem.",
-        action: "Verifique se o email e a senha estão corretos.",
+    if (results.rowCount === 0) {
+      throw new NotFoundError({
+        message: "O id informado não foi encontrado no sistema.",
+        action: "Verifique se o id está digitado corretamente.",
       });
     }
 
-    const passwordMatches = await passwordService.compare(
-      password,
-      userWithPassword.password,
-    );
-
-    if (!passwordMatches) {
-      throw new UnauthorizedError({
-        message: "Dados de autenticação não conferem.",
-        action: "Verifique se o email e a senha estão corretos.",
-      });
-    }
-
-    const { password: _password, ...user } = userWithPassword;
-    return user;
-  }
-
-  async findOneByUsername(username) {
-    if (!username) {
-      return null;
-    }
-
-    const normalizedUsername = String(username).toLowerCase();
-    const client = await database.getNewClient();
-
-    try {
-      const result = await client.query(
-        `
-        SELECT id, email, username, created_at, updated_at
-        FROM users
-        WHERE LOWER(username) = $1
-        LIMIT 1
-        `,
-        [normalizedUsername],
-      );
-
-      return result.rows[0] || null;
-    } finally {
-      await client.end();
-    }
-  }
-
-  async findByUsername(username) {
-    const client = await database.getNewClient();
-
-    try {
-      const result = await client.query(
-        `
-        SELECT id, email, username, created_at, updated_at
-        FROM users
-        WHERE username = $1
-        LIMIT 1
-        `,
-        [username],
-      );
-
-      return result.rows[0] || null;
-    } finally {
-      await client.end();
-    }
-  }
-
-  async updateByUsername(currentUsername, updates = {}) {
-    if (!currentUsername) {
-      return null;
-    }
-
-    const normalizedCurrentUsername = String(currentUsername).toLowerCase();
-    const client = await database.getNewClient();
-
-    try {
-      const existingUserResult = await client.query(
-        `
-        SELECT id, email, username, created_at, updated_at
-        FROM users
-        WHERE LOWER(username) = $1
-        LIMIT 1
-        `,
-        [normalizedCurrentUsername],
-      );
-
-      if (existingUserResult.rowCount === 0) {
-        return null;
-      }
-
-      const existingUser = existingUserResult.rows[0];
-      const setClauses = [];
-      const values = [];
-
-      if (updates.email !== undefined) {
-        const normalizedEmail = String(updates.email).toLowerCase();
-        const existingEmailResult = await client.query(
-          `SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2 LIMIT 1`,
-          [normalizedEmail, existingUser.id],
-        );
-
-        if (existingEmailResult.rowCount > 0) {
-          throw new ValidationError({
-            message: "O email informado a esta sendo ultilizado.",
-            action: "Utilize outro email para realizar o cadastro",
-          });
-        }
-
-        values.push(normalizedEmail);
-        setClauses.push(`email = $${values.length}`);
-      }
-
-      if (updates.username !== undefined) {
-        const normalizedUsername = String(updates.username).toLowerCase();
-        const existingUsernameResult = await client.query(
-          `SELECT id FROM users WHERE LOWER(username) = $1 AND id <> $2 LIMIT 1`,
-          [normalizedUsername, existingUser.id],
-        );
-
-        if (existingUsernameResult.rowCount > 0) {
-          throw new ValidationError({
-            message: "O username informado a esta sendo ultilizado.",
-            action: "Utilize outro username para realizar o cadastro",
-          });
-        }
-
-        values.push(normalizedUsername);
-        setClauses.push(`username = $${values.length}`);
-      }
-
-      if (updates.password !== undefined) {
-        const hashedPassword = await passwordService.hash(
-          String(updates.password),
-        );
-        values.push(hashedPassword);
-        setClauses.push(`password = $${values.length}`);
-      }
-
-      if (setClauses.length === 0) {
-        return existingUser;
-      }
-
-      values.push(existingUser.id);
-      const updatedUserResult = await client.query(
-        `
-        UPDATE users
-        SET ${setClauses.join(", ")}, updated_at = NOW()
-        WHERE id = $${values.length}
-        RETURNING id, email, username, created_at, updated_at
-        `,
-        values,
-      );
-
-      return updatedUserResult.rows[0] || null;
-    } finally {
-      await client.end();
-    }
+    return results.rows[0];
   }
 }
 
-export default new UserService();
+async function findOneByUsername(username) {
+  const userFound = await runSelectQuery(username);
+
+  return userFound;
+
+  async function runSelectQuery(username) {
+    const results = await database.query({
+      text: `
+        SELECT
+          *
+        FROM
+          users
+        WHERE
+          LOWER(username) = LOWER($1)
+        LIMIT
+          1
+        ;`,
+      values: [username],
+    });
+
+    if (results.rowCount === 0) {
+      throw new NotFoundError({
+        message: "O username informado não foi encontrado no sistema.",
+        action: "Verifique se o username está digitado corretamente.",
+      });
+    }
+
+    return results.rows[0];
+  }
+}
+
+async function findOneByEmail(email) {
+  const userFound = await runSelectQuery(email);
+
+  return userFound;
+
+  async function runSelectQuery(email) {
+    const results = await database.query({
+      text: `
+        SELECT
+          *
+        FROM
+          users
+        WHERE
+          LOWER(email) = LOWER($1)
+        LIMIT
+          1
+        ;`,
+      values: [email],
+    });
+
+    if (results.rowCount === 0) {
+      throw new NotFoundError({
+        message: "O email informado não foi encontrado no sistema.",
+        action: "Verifique se o email está digitado corretamente.",
+      });
+    }
+
+    return results.rows[0];
+  }
+}
+
+async function create(userInputValues) {
+  await validateUniqueUsername(userInputValues.username);
+  await validateUniqueEmail(userInputValues.email);
+  await hashPasswordInObject(userInputValues);
+
+  const newUser = await runInsertQuery(userInputValues);
+  return newUser;
+
+  async function runInsertQuery(userInputValues) {
+    const results = await database.query({
+      text: `
+        INSERT INTO
+          users (username, email, password)
+        VALUES
+          ($1, $2, $3)
+        RETURNING
+          *
+        ;`,
+      values: [
+        userInputValues.username,
+        userInputValues.email,
+        userInputValues.password,
+      ],
+    });
+    return results.rows[0];
+  }
+}
+
+async function update(username, userInputValues) {
+  const currentUser = await findOneByUsername(username);
+
+  if ("username" in userInputValues) {
+    await validateUniqueUsername(userInputValues.username);
+  }
+
+  if ("email" in userInputValues) {
+    await validateUniqueEmail(userInputValues.email);
+  }
+
+  if ("password" in userInputValues) {
+    await hashPasswordInObject(userInputValues);
+  }
+
+  const userWithNewValues = { ...currentUser, ...userInputValues };
+
+  const updatedUser = await runUpdateQuery(userWithNewValues);
+  return updatedUser;
+
+  async function runUpdateQuery(userWithNewValues) {
+    const results = await database.query({
+      text: `
+        UPDATE
+          users
+        SET
+          username = $2,
+          email = $3,
+          password = $4,
+          updated_at = timezone('utc', now())
+        WHERE
+          id = $1
+        RETURNING
+          *
+      `,
+      values: [
+        userWithNewValues.id,
+        userWithNewValues.username,
+        userWithNewValues.email,
+        userWithNewValues.password,
+      ],
+    });
+
+    return results.rows[0];
+  }
+}
+
+async function validateUniqueUsername(username) {
+  const results = await database.query({
+    text: `
+      SELECT
+        username
+      FROM
+        users
+      WHERE
+        LOWER(username) = LOWER($1)
+      ;`,
+    values: [username],
+  });
+
+  if (results.rowCount > 0) {
+    throw new ValidationError({
+      message: "O username informado já está sendo utilizado.",
+      action: "Utilize outro username para realizar esta operação.",
+    });
+  }
+}
+
+async function validateUniqueEmail(email) {
+  const results = await database.query({
+    text: `
+      SELECT
+        email
+      FROM
+        users
+      WHERE
+        LOWER(email) = LOWER($1)
+      ;`,
+    values: [email],
+  });
+
+  if (results.rowCount > 0) {
+    throw new ValidationError({
+      message: "O email informado já está sendo utilizado.",
+      action: "Utilize outro email para realizar esta operação.",
+    });
+  }
+}
+
+async function hashPasswordInObject(userInputValues) {
+  const hashedPassword = await password.hash(userInputValues.password);
+  userInputValues.password = hashedPassword;
+}
+
+const user = {
+  create,
+  findOneById,
+  findOneByUsername,
+  findOneByEmail,
+  update,
+};
+
+export default user;
