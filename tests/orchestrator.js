@@ -5,6 +5,7 @@ import database from "infra/database.js";
 import migrator from "models/migrator.js";
 import user from "models/user.js";
 import session from "models/session.js";
+import activation from "models/activation.js";
 
 async function waitForAllServices() {
   await waitForWebServer();
@@ -62,6 +63,10 @@ async function createSession(userId) {
   return await session.create(userId);
 }
 
+async function createActivation(userObject) {
+  return await activation.create(userObject);
+}
+
 const orchestrator = {
   waitForAllServices,
   waitForWebServer,
@@ -70,6 +75,7 @@ const orchestrator = {
   runPendingMigrations,
   createUser,
   createSession,
+  createActivation,
 };
 
 export default orchestrator;
