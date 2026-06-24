@@ -67,6 +67,14 @@ async function createActivation(userObject) {
   return await activation.create(userObject);
 }
 
+function extractUUID(text) {
+  const uuidFound = text.match(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i,
+  );
+
+  return uuidFound?.[0];
+}
+
 const orchestrator = {
   waitForAllServices,
   waitForWebServer,
@@ -76,6 +84,7 @@ const orchestrator = {
   createUser,
   createSession,
   createActivation,
+  extractUUID,
 };
 
 export default orchestrator;
