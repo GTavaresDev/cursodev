@@ -103,6 +103,7 @@ async function create(userInputValues) {
   const features = userInputValues.features ?? {
     "create:session": true,
     "read:activation_token": true,
+    "update:user": true,
   };
 
   const newUser = await runInsertQuery(userInputValues, features);

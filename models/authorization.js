@@ -1,4 +1,4 @@
-function can(userObject, featureName) {
+function can(userObject, featureName, resource) {
   const features = parseFeatures(userObject?.features);
   return Boolean(features?.[featureName]);
 }

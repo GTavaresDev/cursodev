@@ -41,7 +41,7 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: '{"create:session":true,"read:activation_token":true}',
+        features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: createdUser.created_at,
         updated_at: createdUser.updated_at,
       });
@@ -205,7 +205,7 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: '{"create:session":true,"activation":"active","read:session":true}',
+        features: '{"create:session":true,"update:user":true,"activation":"active","read:session":true}',
         created_at: createdUser.created_at,
         updated_at: activatedUser.updated_at,
       });
@@ -230,7 +230,7 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: '{"create:session":true,"activation":"active","read:session":true}',
+        features: '{"create:session":true,"update:user":true,"activation":"active","read:session":true}',
         created_at: createdUser.created_at,
         updated_at: activatedUser.updated_at,
       });

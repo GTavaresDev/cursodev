@@ -113,7 +113,7 @@ describe("PATCH /api/v1/activations/[token_id]", () => {
         email: createdUser.email,
         password: createdUser.password,
         features:
-          '{"create:session":true,"activation":"active","read:session":true}',
+          '{"create:session":true,"update:user":true,"activation":"active","read:session":true}',
         created_at: createdUser.created_at.toISOString(),
         updated_at: responseBody.updated_at,
       });
