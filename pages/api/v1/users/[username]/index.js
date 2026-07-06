@@ -25,10 +25,17 @@ async function patchHandler(request, response) {
   const authenticatedUser = await user.findOneById(request.session.user_id);
   const userFound = await user.findOneByUsername(username);
 
-  if (!authorization.can(authenticatedUser, "update:user", userFound)) {
+  if (!authorization.can(authenticatedUser, "update:user")) {
     throw new ForbiddenError({
       message: 'Usuário não possui a feature "update:user".',
       action: "Solicite a liberação desta feature e tente novamente.",
+    });
+  }
+
+  if (!authorization.can(authenticatedUser, "update:user", userFound)) {
+    throw new ForbiddenError({
+      message: "Você não possui permissão para executar esta ação.",
+      action: "Verifique se você possui permissão para realizar esta operação.",
     });
   }
 

@@ -1,6 +1,17 @@
 function can(userObject, featureName, resource) {
   const features = parseFeatures(userObject?.features);
-  return Boolean(features?.[featureName]);
+
+  if (!features?.[featureName]) {
+    return false;
+  }
+
+  if (featureName === "update:user") {
+    if (resource && userObject.id !== resource.id) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function parseFeatures(features) {

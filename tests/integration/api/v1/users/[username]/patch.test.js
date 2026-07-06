@@ -293,5 +293,36 @@ describe("PATCH /api/v1/users/[username]", () => {
         status_code: 403,
       });
     });
+
+    test("User trying to update another user's profile", async () => {
+      const user1 = await orchestrator.createUser();
+      const user2 = await orchestrator.createUser();
+      const sessionObject = await orchestrator.createSession(user2.id);
+
+      const response = await fetch(
+        `http://localhost:3000/api/v1/users/${user1.username}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${sessionObject.token}`,
+          },
+          body: JSON.stringify({
+            username: "newUsername",
+          }),
+        },
+      );
+
+      expect(response.status).toBe(403);
+
+      const responseBody = await response.json();
+
+      expect(responseBody).toEqual({
+        name: "ForbiddenError",
+        message: "Você não possui permissão para executar esta ação.",
+        action: "Verifique se você possui permissão para realizar esta operação.",
+        status_code: 403,
+      });
+    });
   });
 });
