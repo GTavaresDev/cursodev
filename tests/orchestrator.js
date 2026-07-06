@@ -75,6 +75,14 @@ function extractUUID(text) {
   return uuidFound?.[0];
 }
 
+async function activateUser(userObject) {
+  return await user.setFeatures(userObject.id, {
+    activation: "active",
+    "read:session": true,
+    "read:activation_token": null,
+  });
+}
+
 const orchestrator = {
   waitForAllServices,
   waitForWebServer,
@@ -84,6 +92,7 @@ const orchestrator = {
   createUser,
   createSession,
   createActivation,
+  activateUser,
   extractUUID,
 };
 

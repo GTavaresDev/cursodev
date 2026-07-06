@@ -18,6 +18,7 @@ describe("GET /api/v1/users/[username]", () => {
       const activatedUser = await user.setFeatures(createdUser.id, {
         activation: "active",
         "read:session": true,
+        "read:activation_token": null,
       });
 
       const response = await fetch(
@@ -51,6 +52,7 @@ describe("GET /api/v1/users/[username]", () => {
       const activatedUser = await user.setFeatures(createdUser.id, {
         activation: "active",
         "read:session": true,
+        "read:activation_token": null,
       });
 
       const response = await fetch(

@@ -1,8 +1,9 @@
 import crypto from "node:crypto";
 
 import database from "infra/database.js";
-import { UnauthorizedError } from "infra/errors";
+import { UnauthorizedError, ForbiddenError } from "infra/errors";
 import webserver from "infra/webserver.js";
+import authorization from "models/authorization.js";
 import email from "models/email.js";
 import user from "models/user.js";
 
@@ -55,9 +56,19 @@ async function create(userObject) {
 }
 
 async function activateUserByUserId(userId) {
+  const userToActivate = await user.findOneById(userId);
+
+  if (!authorization.can(userToActivate, "read:activation_token")) {
+    throw new ForbiddenError({
+      message: "Você não pode mais utilizar tokens de ativação.",
+      action: "Entre em contato com o suporte.",
+    });
+  }
+
   const activatedUser = await user.setFeatures(userId, {
     activation: "active",
     "read:session": true,
+    "read:activation_token": null,
   });
 
   return activatedUser;

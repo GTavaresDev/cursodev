@@ -78,6 +78,27 @@ export class NotFoundError extends Error {
     };
   }
 }
+export class ForbiddenError extends Error {
+  constructor({ cause, message, action }) {
+    super(message || "Usuário não possui permissão para executar esta ação.", {
+      cause,
+    });
+    this.name = "ForbiddenError";
+    this.action =
+      action || "Verifique se você possui permissão para realizar esta operação.";
+    this.statusCode = 403;
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      action: this.action,
+      status_code: this.statusCode,
+    };
+  }
+}
+
 export class UnauthorizedError extends Error {
   constructor({ cause, message, action }) {
     super(message || "Usuário não autenticado.", {

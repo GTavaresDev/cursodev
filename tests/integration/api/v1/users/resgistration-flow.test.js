@@ -41,7 +41,7 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: '{"create:session":true}',
+        features: '{"create:session":true,"read:activation_token":true}',
         created_at: createdUser.created_at,
         updated_at: createdUser.updated_at,
       });
@@ -120,6 +120,24 @@ describe("Registration flow", () => {
 
       expect(response.status).toBe(201);
       const createdUser = await response.json();
+
+      const createSessionResponse = await fetch(
+        "http://localhost:3000/api/v1/sessions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: userObject.email,
+            password: userObject.password,
+          }),
+        },
+      );
+
+      expect(createSessionResponse.status).toBe(201);
+
+      const createdSession = await createSessionResponse.json();
 
       const receivedEmail = await findEmailBySubject(
         activation.ACTIVATION_EMAIL_SUBJECT,

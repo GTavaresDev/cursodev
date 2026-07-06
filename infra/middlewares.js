@@ -1,4 +1,4 @@
-import { UnauthorizedError, ValidationError } from "infra/errors.js";
+import { UnauthorizedError, ValidationError, ForbiddenError } from "infra/errors.js";
 import authentication from "models/authentication.js";
 import authorization from "models/authorization.js";
 import session from "models/session.js";
@@ -99,6 +99,42 @@ function canRequest(featureName) {
   };
 }
 
+async function injectAnonymousOrUser(request, response, next) {
+  const sessionToken = request.cookies?.session_id;
+
+  if (sessionToken) {
+    request.session = await session.findOneValidByToken(sessionToken);
+    request.authenticatedUser = await user.findOneById(request.session.user_id);
+    request.isAnonymous = false;
+
+    return next();
+  }
+
+  request.authenticatedUser = {
+    features: '{"read:activation_token":true}',
+  };
+  request.isAnonymous = true;
+
+  return next();
+}
+
+function canActivationTokenRequest() {
+  return async function canActivationTokenRequestByFeature(
+    request,
+    response,
+    next,
+  ) {
+    if (!authorization.can(request.authenticatedUser, "read:activation_token")) {
+      throw new ForbiddenError({
+        message: 'Usuário não possui a feature "read:activation_token".',
+        action: "Solicite a liberação desta feature e tente novamente.",
+      });
+    }
+
+    return next();
+  };
+}
+
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -134,8 +170,10 @@ function assertStringField(requestBody, fieldName) {
 }
 
 const middlewares = {
+  canActivationTokenRequest,
   canRequest,
   canSessionRequest,
+  injectAnonymousOrUser,
   requireBodyFields,
   requireSession,
 };

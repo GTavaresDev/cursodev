@@ -8,6 +8,7 @@ import {
   ValidationError,
   NotFoundError,
   UnauthorizedError,
+  ForbiddenError,
 } from "infra/errors";
 
 function onNoMatchHandler(request, response) {
@@ -20,6 +21,7 @@ function onErrorHandler(error, request, response) {
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
     error instanceof UnauthorizedError ||
+    error instanceof ForbiddenError ||
     error instanceof ServiceError
   ) {
     return response.status(error.statusCode).json(error);

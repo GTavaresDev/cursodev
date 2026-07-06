@@ -102,6 +102,7 @@ async function create(userInputValues) {
 
   const features = userInputValues.features ?? {
     "create:session": true,
+    "read:activation_token": true,
   };
 
   const newUser = await runInsertQuery(userInputValues, features);
@@ -181,6 +182,12 @@ async function setFeatures(userId, features) {
     ...parseFeatures(currentUser.features),
     ...features,
   };
+
+  for (const [featureName, featureValue] of Object.entries(features)) {
+    if (featureValue === null) {
+      delete mergedFeatures[featureName];
+    }
+  }
 
   const updatedUser = await runUpdateQuery(userId, mergedFeatures);
 

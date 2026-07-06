@@ -17,10 +17,7 @@ describe("GET /api/v1/user", () => {
         username: "UserWithValidSession",
       });
 
-      const activatedUser = await user.setFeatures(createdUser.id, {
-        activation: "active",
-        "read:session": true,
-      });
+      const activatedUser = await orchestrator.activateUser(createdUser);
 
       const sessionObject = await orchestrator.createSession(createdUser.id);
 
@@ -41,7 +38,7 @@ describe("GET /api/v1/user", () => {
         password: createdUser.password,
         features: activatedUser.features,
         created_at: createdUser.created_at.toISOString(),
-        updated_at: createdUser.updated_at.toISOString(),
+        updated_at: activatedUser.updated_at.toISOString(),
       });
 
       expect(uuidVersion(responseBody.id)).toBe(4);
@@ -83,10 +80,7 @@ describe("GET /api/v1/user", () => {
         username: "UserWithHalfwayExpiredSession",
       });
 
-      const activatedUser = await user.setFeatures(createdUser.id, {
-        activation: "active",
-        "read:session": true,
-      });
+      const activatedUser = await orchestrator.activateUser(createdUser);
 
       const sessionObject = await orchestrator.createSession(createdUser.id);
 
@@ -109,7 +103,7 @@ describe("GET /api/v1/user", () => {
         password: createdUser.password,
         features: activatedUser.features,
         created_at: createdUser.created_at.toISOString(),
-        updated_at: createdUser.updated_at.toISOString(),
+        updated_at: activatedUser.updated_at.toISOString(),
       });
 
       expect(uuidVersion(responseBody.id)).toBe(4);
