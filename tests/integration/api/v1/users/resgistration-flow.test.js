@@ -41,7 +41,7 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: "{}",
+        features: '{"create:session":true}',
         created_at: createdUser.created_at,
         updated_at: createdUser.updated_at,
       });
@@ -89,7 +89,7 @@ describe("Registration flow", () => {
 
       expect(parsedSetCookie.session_id.value).toBe(createdSession.token);
 
-      const getCurrentUserResponse = await fetch(
+      const blockedCurrentUserResponse = await fetch(
         "http://localhost:3000/api/v1/user",
         {
           headers: {
@@ -98,19 +98,7 @@ describe("Registration flow", () => {
         },
       );
 
-      expect(getCurrentUserResponse.status).toBe(200);
-
-      const currentUser = await getCurrentUserResponse.json();
-
-      expect(currentUser).toEqual({
-        id: createdUser.id,
-        username: userObject.username,
-        email: userObject.email,
-        password: createdUser.password,
-        features: "{}",
-        created_at: createdUser.created_at,
-        updated_at: createdUser.updated_at,
-      });
+      expect(blockedCurrentUserResponse.status).toBe(401);
     });
 
     test("receive activation email", async () => {
@@ -199,12 +187,35 @@ describe("Registration flow", () => {
         username: userObject.username,
         email: userObject.email,
         password: createdUser.password,
-        features: '{"activation":"active"}',
+        features: '{"create:session":true,"activation":"active","read:session":true}',
         created_at: createdUser.created_at,
         updated_at: activatedUser.updated_at,
       });
 
       expect(Date.parse(activatedUser.updated_at)).not.toBeNaN();
+
+      const getCurrentUserResponse = await fetch(
+        "http://localhost:3000/api/v1/user",
+        {
+          headers: {
+            Cookie: `session_id=${createdSession.token}`,
+          },
+        },
+      );
+
+      expect(getCurrentUserResponse.status).toBe(200);
+
+      const currentUser = await getCurrentUserResponse.json();
+
+      expect(currentUser).toEqual({
+        id: createdUser.id,
+        username: userObject.username,
+        email: userObject.email,
+        password: createdUser.password,
+        features: '{"create:session":true,"activation":"active","read:session":true}',
+        created_at: createdUser.created_at,
+        updated_at: activatedUser.updated_at,
+      });
 
       const activatedEmail = await findEmailBySubject(
         activation.ACTIVATED_EMAIL_SUBJECT,

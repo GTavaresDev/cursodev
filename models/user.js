@@ -100,16 +100,20 @@ async function create(userInputValues) {
   await validateUniqueEmail(userInputValues.email);
   await hashPasswordInObject(userInputValues);
 
-  const newUser = await runInsertQuery(userInputValues);
+  const features = userInputValues.features ?? {
+    "create:session": true,
+  };
+
+  const newUser = await runInsertQuery(userInputValues, features);
   return newUser;
 
-  async function runInsertQuery(userInputValues) {
+  async function runInsertQuery(userInputValues, features) {
     const results = await database.query({
       text: `
         INSERT INTO
-          users (username, email, password)
+          users (username, email, password, features)
         VALUES
-          ($1, $2, $3)
+          ($1, $2, $3, $4)
         RETURNING
           *
         ;`,
@@ -117,6 +121,7 @@ async function create(userInputValues) {
         userInputValues.username,
         userInputValues.email,
         userInputValues.password,
+        JSON.stringify(features),
       ],
     });
     return results.rows[0];
@@ -171,7 +176,13 @@ async function update(username, userInputValues) {
 }
 
 async function setFeatures(userId, features) {
-  const updatedUser = await runUpdateQuery(userId, features);
+  const currentUser = await findOneById(userId);
+  const mergedFeatures = {
+    ...parseFeatures(currentUser.features),
+    ...features,
+  };
+
+  const updatedUser = await runUpdateQuery(userId, mergedFeatures);
 
   return updatedUser;
 
@@ -193,6 +204,18 @@ async function setFeatures(userId, features) {
 
     return results.rows[0];
   }
+}
+
+function parseFeatures(features) {
+  if (!features) {
+    return {};
+  }
+
+  if (typeof features === "string") {
+    return JSON.parse(features);
+  }
+
+  return features;
 }
 
 async function validateUniqueUsername(username) {
