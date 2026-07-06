@@ -273,6 +273,29 @@ async function hashPasswordInObject(userInputValues) {
   userInputValues.password = hashedPassword;
 }
 
+async function addFeatures(userId, featuresToAdd) {
+  const results = await database.query({
+    text: `
+      UPDATE users
+      SET features = (
+        SELECT COALESCE(json_object_agg(key, true), '{}'::json)::text
+        FROM (
+          SELECT DISTINCT key
+          FROM unnest(array_cat(
+            ARRAY(SELECT json_object_keys(features::json)),
+            $2::text[]
+          )) as key
+        ) as unique_keys
+      )
+      WHERE id = $1
+      RETURNING *;
+    `,
+    values: [userId, featuresToAdd],
+  });
+
+  return results.rows[0];
+}
+
 const user = {
   create,
   findOneById,
@@ -280,6 +303,7 @@ const user = {
   findOneByEmail,
   setFeatures,
   update,
+  addFeatures,
 };
 
 export default user;

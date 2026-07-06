@@ -324,5 +324,47 @@ describe("PATCH /api/v1/users/[username]", () => {
         status_code: 403,
       });
     });
+
+    test("Privileged user (with update:user:others feature) trying to update another user's profile", async () => {
+      const user1 = await orchestrator.createUser();
+      const user2 = await orchestrator.createUser();
+      await orchestrator.addFeaturesToUser(user2.id, ["update:user:others"]);
+      const sessionObject = await orchestrator.createSession(user2.id);
+
+      const response = await fetch(
+        `http://localhost:3000/api/v1/users/${user1.username}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: `session_id=${sessionObject.token}`,
+          },
+          body: JSON.stringify({
+            username: "newUsernameByPrivilegedUser",
+          }),
+        },
+      );
+
+      expect(response.status).toBe(200);
+
+      const responseBody = await response.json();
+
+      expect(responseBody).toEqual({
+        id: user1.id,
+        username: "newUsernameByPrivilegedUser",
+        email: user1.email,
+        password: responseBody.password,
+        features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
+        created_at: responseBody.created_at,
+        updated_at: responseBody.updated_at,
+      });
+
+      expect(uuidVersion(responseBody.id)).toBe(4);
+      expect(Date.parse(responseBody.created_at)).not.toBeNaN();
+      expect(Date.parse(responseBody.updated_at)).not.toBeNaN();
+
+      const userInDatabase = await user.findOneById(user1.id);
+      expect(userInDatabase.username).toBe("newUsernameByPrivilegedUser");
+    });
   });
 });
