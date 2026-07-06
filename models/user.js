@@ -100,16 +100,21 @@ async function create(userInputValues) {
   await validateUniqueEmail(userInputValues.email);
   await hashPasswordInObject(userInputValues);
 
-  const newUser = await runInsertQuery(userInputValues);
+  const features = userInputValues.features ?? {
+    "create:session": true,
+    "read:activation_token": true,
+  };
+
+  const newUser = await runInsertQuery(userInputValues, features);
   return newUser;
 
-  async function runInsertQuery(userInputValues) {
+  async function runInsertQuery(userInputValues, features) {
     const results = await database.query({
       text: `
         INSERT INTO
-          users (username, email, password)
+          users (username, email, password, features)
         VALUES
-          ($1, $2, $3)
+          ($1, $2, $3, $4)
         RETURNING
           *
         ;`,
@@ -117,6 +122,7 @@ async function create(userInputValues) {
         userInputValues.username,
         userInputValues.email,
         userInputValues.password,
+        JSON.stringify(features),
       ],
     });
     return results.rows[0];
@@ -168,6 +174,55 @@ async function update(username, userInputValues) {
 
     return results.rows[0];
   }
+}
+
+async function setFeatures(userId, features) {
+  const currentUser = await findOneById(userId);
+  const mergedFeatures = {
+    ...parseFeatures(currentUser.features),
+    ...features,
+  };
+
+  for (const [featureName, featureValue] of Object.entries(features)) {
+    if (featureValue === null) {
+      delete mergedFeatures[featureName];
+    }
+  }
+
+  const updatedUser = await runUpdateQuery(userId, mergedFeatures);
+
+  return updatedUser;
+
+  async function runUpdateQuery(userId, features) {
+    const results = await database.query({
+      text: `
+        UPDATE
+          users
+        SET
+          features = $2,
+          updated_at = timezone('utc', now())
+        WHERE
+          id = $1
+        RETURNING
+          *
+      ;`,
+      values: [userId, JSON.stringify(features)],
+    });
+
+    return results.rows[0];
+  }
+}
+
+function parseFeatures(features) {
+  if (!features) {
+    return {};
+  }
+
+  if (typeof features === "string") {
+    return JSON.parse(features);
+  }
+
+  return features;
 }
 
 async function validateUniqueUsername(username) {
@@ -222,6 +277,7 @@ const user = {
   findOneById,
   findOneByUsername,
   findOneByEmail,
+  setFeatures,
   update,
 };
 

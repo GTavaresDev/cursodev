@@ -4,9 +4,11 @@ import session from "models/session.js";
 import {
   InternalServerError,
   MethodNotAllowedError,
+  ServiceError,
   ValidationError,
   NotFoundError,
   UnauthorizedError,
+  ForbiddenError,
 } from "infra/errors";
 
 function onNoMatchHandler(request, response) {
@@ -18,7 +20,9 @@ function onErrorHandler(error, request, response) {
   if (
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
-    error instanceof UnauthorizedError
+    error instanceof UnauthorizedError ||
+    error instanceof ForbiddenError ||
+    error instanceof ServiceError
   ) {
     return response.status(error.statusCode).json(error);
   }
