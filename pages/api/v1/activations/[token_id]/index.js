@@ -1,6 +1,7 @@
 import { createRouter } from "next-connect";
 import controller from "infra/controller.js";
 import middlewares from "infra/middlewares.js";
+import authorization from "models/authorization.js";
 import { ForbiddenError } from "infra/errors.js";
 import activation from "models/activation.js";
 
@@ -33,8 +34,17 @@ async function patchHandler(request, response) {
     activationToken.user_id,
   );
 
-  await activation.markTokenAsUsed(activationToken.id);
+  const usedActivationToken = await activation.markTokenAsUsed(
+    activationToken.id,
+  );
+
   await activation.sendActivatedEmail(activatedUser);
 
-  return response.status(200).json(activatedUser);
+  const secureOutputValues = authorization.filterOutput(
+    request.authenticatedUser,
+    "read:activation_token",
+    usedActivationToken,
+  );
+
+  return response.status(200).json(secureOutputValues);
 }

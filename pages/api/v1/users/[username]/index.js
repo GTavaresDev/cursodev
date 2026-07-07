@@ -7,7 +7,7 @@ import user from "models/user.js";
 
 const router = createRouter();
 
-router.get(getHandler);
+router.get(middlewares.injectAnonymousOrUser, getHandler);
 router.patch(middlewares.requireSession, patchHandler);
 
 export default router.handler(controller.errorHandlers);
@@ -15,7 +15,14 @@ export default router.handler(controller.errorHandlers);
 async function getHandler(request, response) {
   const username = request.query.username;
   const userFound = await user.findOneByUsername(username);
-  return response.status(200).json(userFound);
+
+  const secureOutputValues = authorization.filterOutput(
+    request.authenticatedUser,
+    "read:user",
+    userFound,
+  );
+
+  return response.status(200).json(secureOutputValues);
 }
 
 async function patchHandler(request, response) {
@@ -40,5 +47,12 @@ async function patchHandler(request, response) {
   }
 
   const updatedUser = await user.update(username, userInputValues);
-  return response.status(200).json(updatedUser);
+
+  const secureOutputValues = authorization.filterOutput(
+    authenticatedUser,
+    "read:user",
+    updatedUser,
+  );
+
+  return response.status(200).json(secureOutputValues);
 }

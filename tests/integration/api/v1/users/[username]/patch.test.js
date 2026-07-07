@@ -153,8 +153,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: "uniqueUser2",
-        email: createdUser.email,
-        password: responseBody.password,
         features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
@@ -192,8 +190,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: createdUser.username,
-        email: "uniqueEmail2@curso.dev",
-        password: responseBody.password,
         features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
@@ -233,8 +229,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: responseBody.id,
         username: createdUser.username,
-        email: createdUser.email,
-        password: responseBody.password,
         features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,
@@ -352,8 +346,6 @@ describe("PATCH /api/v1/users/[username]", () => {
       expect(responseBody).toEqual({
         id: user1.id,
         username: "newUsernameByPrivilegedUser",
-        email: user1.email,
-        password: responseBody.password,
         features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: responseBody.created_at,
         updated_at: responseBody.updated_at,

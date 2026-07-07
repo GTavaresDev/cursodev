@@ -108,21 +108,22 @@ describe("PATCH /api/v1/activations/[token_id]", () => {
       const responseBody = await response.json();
 
       expect(responseBody).toEqual({
-        id: createdUser.id,
-        username: createdUser.username,
-        email: createdUser.email,
-        password: createdUser.password,
-        features:
-          '{"create:session":true,"update:user":true,"activation":"active","read:session":true}',
-        created_at: createdUser.created_at.toISOString(),
+        id: activationToken.id,
+        used_at: responseBody.used_at,
+        user_id: activationToken.user_id,
+        expires_at: activationToken.expires_at.toISOString(),
+        created_at: activationToken.created_at.toISOString(),
         updated_at: responseBody.updated_at,
       });
 
       expect(uuidVersion(responseBody.id)).toBe(4);
+      expect(uuidVersion(responseBody.user_id)).toBe(4);
+
+      expect(Date.parse(responseBody.expires_at)).not.toBeNaN();
+      expect(Date.parse(responseBody.created_at)).not.toBeNaN();
       expect(Date.parse(responseBody.updated_at)).not.toBeNaN();
-      expect(responseBody.updated_at > createdUser.updated_at.toISOString()).toBe(
-        true,
-      );
+      expect(Date.parse(responseBody.used_at)).not.toBeNaN();
+      expect(responseBody.updated_at > responseBody.created_at).toBe(true);
     });
 
     test("With valid token but already activated user", async () => {
