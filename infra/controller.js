@@ -17,12 +17,22 @@ function onNoMatchHandler(request, response) {
 }
 
 function onErrorHandler(error, request, response) {
+  if (error instanceof ServiceError) {
+    console.error({
+      name: error.name,
+      message: error.message,
+      context: error.context,
+      cause: error.cause,
+    });
+
+    return response.status(error.statusCode).json(error);
+  }
+
   if (
     error instanceof ValidationError ||
     error instanceof NotFoundError ||
     error instanceof UnauthorizedError ||
-    error instanceof ForbiddenError ||
-    error instanceof ServiceError
+    error instanceof ForbiddenError
   ) {
     return response.status(error.statusCode).json(error);
   }
