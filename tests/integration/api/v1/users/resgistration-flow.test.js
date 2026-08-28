@@ -39,9 +39,7 @@ describe("Registration flow", () => {
       expect(createdUser).toEqual({
         id: createdUser.id,
         username: userObject.username,
-        email: userObject.email,
-        password: createdUser.password,
-        features: '{"create:session":true,"read:activation_token":true}',
+        features: '{"create:session":true,"read:activation_token":true,"update:user":true}',
         created_at: createdUser.created_at,
         updated_at: createdUser.updated_at,
       });
@@ -49,7 +47,6 @@ describe("Registration flow", () => {
       expect(uuidVersion(createdUser.id)).toBe(4);
       expect(Date.parse(createdUser.created_at)).not.toBeNaN();
       expect(Date.parse(createdUser.updated_at)).not.toBeNaN();
-      expect(createdUser.password).not.toBe(userObject.password);
 
       const createSessionResponse = await fetch(
         "http://localhost:3000/api/v1/sessions",
@@ -198,19 +195,19 @@ describe("Registration flow", () => {
 
       expect(activationResponse.status).toBe(200);
 
-      const activatedUser = await activationResponse.json();
+      const usedActivationToken = await activationResponse.json();
 
-      expect(activatedUser).toEqual({
-        id: createdUser.id,
-        username: userObject.username,
-        email: userObject.email,
-        password: createdUser.password,
-        features: '{"create:session":true,"activation":"active","read:session":true}',
-        created_at: createdUser.created_at,
-        updated_at: activatedUser.updated_at,
+      expect(usedActivationToken).toEqual({
+        id: activationTokenId,
+        used_at: usedActivationToken.used_at,
+        user_id: createdUser.id,
+        expires_at: validActivationToken.expires_at.toISOString(),
+        created_at: validActivationToken.created_at.toISOString(),
+        updated_at: usedActivationToken.updated_at,
       });
 
-      expect(Date.parse(activatedUser.updated_at)).not.toBeNaN();
+      expect(Date.parse(usedActivationToken.used_at)).not.toBeNaN();
+      expect(Date.parse(usedActivationToken.updated_at)).not.toBeNaN();
 
       const getCurrentUserResponse = await fetch(
         "http://localhost:3000/api/v1/user",
@@ -229,10 +226,9 @@ describe("Registration flow", () => {
         id: createdUser.id,
         username: userObject.username,
         email: userObject.email,
-        password: createdUser.password,
-        features: '{"create:session":true,"activation":"active","read:session":true}',
+        features: '{"create:session":true,"update:user":true,"activation":"active","read:session":true}',
         created_at: createdUser.created_at,
-        updated_at: activatedUser.updated_at,
+        updated_at: currentUser.updated_at,
       });
 
       const activatedEmail = await findEmailBySubject(

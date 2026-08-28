@@ -118,6 +118,19 @@ async function injectAnonymousOrUser(request, response, next) {
   return next();
 }
 
+function canUserRequest(featureName) {
+  return async function canUserRequestByFeature(request, response, next) {
+    if (!authorization.can(request.authenticatedUser, featureName)) {
+      throw new ForbiddenError({
+        message: "Você não possui permissão para executar esta ação.",
+        action: `Verifique se o seu usuário possui a feature "${featureName}"`,
+      });
+    }
+
+    return next();
+  };
+}
+
 function canActivationTokenRequest() {
   return async function canActivationTokenRequestByFeature(
     request,
@@ -173,6 +186,7 @@ const middlewares = {
   canActivationTokenRequest,
   canRequest,
   canSessionRequest,
+  canUserRequest,
   injectAnonymousOrUser,
   requireBodyFields,
   requireSession,

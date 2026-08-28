@@ -83,6 +83,11 @@ async function activateUser(userObject) {
   });
 }
 
+async function addFeaturesToUser(userOrId, featuresToAdd) {
+  const userId = typeof userOrId === "object" ? userOrId.id : userOrId;
+  return await user.addFeatures(userId, featuresToAdd);
+}
+
 const orchestrator = {
   waitForAllServices,
   waitForWebServer,
@@ -94,6 +99,7 @@ const orchestrator = {
   createActivation,
   activateUser,
   extractUUID,
+  addFeaturesToUser,
 };
 
 export default orchestrator;
